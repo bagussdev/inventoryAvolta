@@ -1,0 +1,848 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Incident;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\IncidentsExport;
+use App\Exports\IncidentsCompletedExport;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Models\Equipment;
+use App\Models\Department;
+use App\Models\Store;
+use App\Models\Item;
+use App\Models\User;
+use App\Models\Sparepart;
+use App\Models\UsedSparePart;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+class IncidentController extends Controller
+{
+    use AuthorizesRequests;
+    public function index(Request $request)
+    {
+        $this->authorize('incidentmenu');
+
+        $perPage    = $request->input('per_page', 5);
+        $search     = $request->input('search');
+        $startDate  = $request->input('start_date');
+        $endDate    = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $incidentsQuery = Incident::query()
+            // Eager load all relationships that might be needed for display or filtering
+            ->with([
+                'equipment',         // Direct relation for 'item_problem'
+                'store',        // Direct relation for 'location'
+                'user',         // Relation for 'pic_user'
+                'picUser',      // Relation for 'pic_staff'
+                'confirm',      // Relation for 'confirm_by'
+                'resolve'       // Relation for 'resolvedby'
+            ])->whereNotIn('status', ['completed']);
+
+        // Filter: Global Search
+        if ($search) {
+            $incidentsQuery->where(function ($q) use ($search) {
+                $q->where('unique_id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('message_user', 'like', "%{$search}%")
+                    ->orWhere('message_staff', 'like', "%{$search}%")
+                    // Search through related item details (direct relation from Incident)
+                    ->orWhereHas('equipment.item', function ($sub) use ($search) { // Changed from 'equipment.item' to 'item'
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
+                    })
+                    // Search through store name
+                    ->orWhereHas('store', function ($sub) use ($search) {
+                        $sub->where('site_code', 'like', "%{$search}%");
+                    })
+                    // Search through reporter's name (user relation maps to pic_user)
+                    ->orWhereHas('user', function ($sub) use ($search) { // Refers to 'pic_user' column
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through PIC Staff's name
+                    ->orWhereHas('picUser', function ($sub) use ($search) { // Refers to 'pic_staff' column
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through Confirm By user's name
+                    ->orWhereHas('confirm', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through Resolved By user's name
+                    ->orWhereHas('resolve', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                // Filter berdasarkan lokasi store user
+                if ($user->store_location) {
+                    $incidentsQuery->where('location', $user->store_location);
+                } else {
+                    $incidentsQuery->whereRaw('1=0'); // Tidak ada lokasi
+                }
+            } else {
+                // Filter berdasarkan departemen item
+                if ($user->department_id) {
+                    $incidentsQuery->whereHas('equipment.item', function ($q) use ($user) {
+                        $q->where('department_id', $user->department_id);
+                    });
+                } else {
+                    $incidentsQuery->whereRaw('1=0'); // Tidak ada department
+                }
+            }
+        }
+
+        // Filter: Tanggal (NO CHANGE)
+        if ($startDate && $endDate) {
+            $incidentsQuery->whereBetween('created_at', [
+                $startDate . ' 00:00:00',
+                $endDate   . ' 23:59:59'
+            ]);
+        }
+
+        $incidents = $incidentsQuery->latest('created_at')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
+    }
+    public function export(Request $request)
+    {
+        // Otorisasi
+        $this->authorize('incidentmenu');
+
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $incidentsQuery = Incident::query()
+            ->with(['equipment.item', 'equipment.store', 'user'])->whereNotIn('status', ['completed']);
+
+        // 1. Filter Pencarian
+        if ($search) {
+            $incidentsQuery->where(function ($query) use ($search) {
+                $query->where('id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhereHas('equipment.item', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('equipment.store', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // 2. Filter Department (jika bukan Master)
+        if (!$isMaster) {
+            if ($user->department_id) {
+                $incidentsQuery->whereHas('equipment.item', function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id);
+                });
+            } else {
+                $incidentsQuery->whereNull('id');
+            }
+        }
+
+        // 3. Filter Tanggal
+        if ($startDate && $endDate) {
+            $incidentsQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        $filteredIncidents = $incidentsQuery->latest('created_at')->get();
+
+        $filename = 'incidents_filtered_' . date('Y-m-d_H-i') . '.xlsx';
+
+        return Excel::download(new IncidentsExport($filteredIncidents), $filename);
+    }
+    public function completed(Request $request)
+    {
+        $this->authorize('incidentmenu');
+
+        $perPage    = $request->input('per_page', 5);
+        $search     = $request->input('search');
+        $startDate  = $request->input('start_date');
+        $endDate    = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $incidentsQuery = Incident::query()
+            // Eager load all relationships that might be needed for display or filtering
+            ->with([
+                'equipment',         // Direct relation for 'item_problem'
+                'store',        // Direct relation for 'location'
+                'user',         // Relation for 'pic_user'
+                'picUser',      // Relation for 'pic_staff'
+                'confirm',      // Relation for 'confirm_by'
+                'resolve'       // Relation for 'resolvedby'
+            ])->whereIn('status', ['completed']);
+
+        // Filter: Global Search
+        if ($search) {
+            $incidentsQuery->where(function ($q) use ($search) {
+                $q->where('unique_id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('message_user', 'like', "%{$search}%")
+                    ->orWhere('message_staff', 'like', "%{$search}%")
+                    // Search through related item details (direct relation from Incident)
+                    ->orWhereHas('equipment.item', function ($sub) use ($search) { // Changed from 'equipment.item' to 'item'
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
+                    })
+                    // Search through store name
+                    ->orWhereHas('store', function ($sub) use ($search) {
+                        $sub->where('site_code', 'like', "%{$search}%");
+                    })
+                    // Search through reporter's name (user relation maps to pic_user)
+                    ->orWhereHas('user', function ($sub) use ($search) { // Refers to 'pic_user' column
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through PIC Staff's name
+                    ->orWhereHas('picUser', function ($sub) use ($search) { // Refers to 'pic_staff' column
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through Confirm By user's name
+                    ->orWhereHas('confirm', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    // Search through Resolved By user's name
+                    ->orWhereHas('resolve', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                // Filter berdasarkan lokasi store user
+                if ($user->store_location) {
+                    $incidentsQuery->where('location', $user->store_location);
+                } else {
+                    $incidentsQuery->whereRaw('1=0'); // Tidak ada lokasi
+                }
+            } else {
+                // Filter berdasarkan departemen item
+                if ($user->department_id) {
+                    $incidentsQuery->whereHas('equipment.item', function ($q) use ($user) {
+                        $q->where('department_id', $user->department_id);
+                    });
+                } else {
+                    $incidentsQuery->whereRaw('1=0'); // Tidak ada department
+                }
+            }
+        }
+
+        // Filter: Tanggal (NO CHANGE)
+        if ($startDate && $endDate) {
+            $incidentsQuery->whereBetween('created_at', [
+                $startDate . ' 00:00:00',
+                $endDate   . ' 23:59:59'
+            ]);
+        }
+
+        $incidents = $incidentsQuery->latest('created_at')
+            ->paginate($perPage)
+            ->appends($request->query());
+
+        return view('incidents.completed', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
+    }
+    public function exportCompleted(Request $request)
+    {
+        // Otorisasi
+        $this->authorize('incidentmenu');
+
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $incidentsQuery = Incident::query()
+            ->with(['equipment.item', 'equipment.store', 'user'])->whereIn('status', ['completed']);
+
+        // 1. Filter Pencarian
+        if ($search) {
+            $incidentsQuery->where(function ($query) use ($search) {
+                $query->where('id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhereHas('equipment.item', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('equipment.store', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('user', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // 2. Filter Department (jika bukan Master)
+        if (!$isMaster) {
+            if ($user->department_id) {
+                $incidentsQuery->whereHas('equipment.item', function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id);
+                });
+            } else {
+                $incidentsQuery->whereNull('id');
+            }
+        }
+
+        // 3. Filter Tanggal
+        if ($startDate && $endDate) {
+            $incidentsQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        $filteredIncidents = $incidentsQuery->latest('created_at')->get();
+
+        $filename = 'incidentsCompleted_filtered_' . date('Y-m-d_H-i') . '.xlsx';
+
+        return Excel::download(new IncidentsCompletedExport($filteredIncidents), $filename);
+    }
+    public function create()
+    {
+        $this->authorize('incident.create');
+
+        $loggedInUser = Auth::user();
+        $userRole = strtolower($loggedInUser->role->name ?? '');
+        $isMaster = Gate::allows('isMaster');
+
+        // Ambil semua store dengan tipe 'store' (untuk dropdown store)
+        $storesQuery = Store::query();
+        if (in_array($userRole, ['staff', 'mep', 'spv'])) {
+            $storesQuery->where('type', 'store');
+        }
+        $stores = $storesQuery->get();
+
+        // Ambil semua equipments (untuk filter item_problem nanti)
+        $equipmentsQuery = Equipment::with(['item', 'store']);
+        if (!$isMaster && $loggedInUser->department_id) {
+            $equipmentsQuery->whereHas('item', function ($q) use ($loggedInUser) {
+                $q->where('department_id', $loggedInUser->department_id);
+            });
+        }
+        $equipments = $equipmentsQuery->get();
+
+        // Ambil semua items (untuk keperluan select item_problem - disimpan sebagai items_id)
+        $items = Item::all();
+
+        // Ambil id departemen IT dan MEP
+        $deptItId = Department::where('name', 'IT')->value('id');
+        $deptMepId = Department::where('name', 'MEP')->value('id');
+
+        return view('incidents.create', compact(
+            'stores',
+            'equipments',
+            'items',
+            'loggedInUser',
+            'deptItId',
+            'deptMepId'
+        ));
+    }
+
+    public function store(Request $request)
+    {
+        $this->authorize('incident.create');
+
+        $validated = $request->validate([
+            'store_id'        => 'required|exists:store,id',
+            'department_to'   => 'required|exists:departments,id',
+            'item_problem'    => 'required|exists:equipments,id',
+            'message_user'    => 'required|string|max:1000',
+            'attachment_user' => 'required|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi|max:20480',
+        ]);
+
+        $loggedInUser = Auth::id();
+
+        // Cek jika item sudah dilaporkan sebelumnya dan masih aktif
+        $existing = Incident::where('item_problem', $validated['item_problem'])
+            ->whereIn('status', ['waiting', 'in progress', 'pending'])
+            ->exists();
+
+        if ($existing) {
+            return back()->withErrors([
+                'item_problem' => 'This item is already reported and is still being handled.'
+            ])->withInput();
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // LOCK untuk dapatkan unique ID terakhir secara aman
+            $last = DB::table('incidents')
+                ->select('unique_id')
+                ->where('unique_id', 'like', 'INC%')
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
+
+            $lastNum = $last ? (int) Str::after($last->unique_id, 'INC') : 0;
+            $newUniqueId = 'INC' . str_pad($lastNum + 1, 5, '0', STR_PAD_LEFT);
+
+            // Upload file
+            $attachmentPath = $request->file('attachment_user')->store('incident_attachments', 'public');
+
+            // Simpan data incident
+            Incident::create([
+                'unique_id'       => $newUniqueId,
+                'location'        => $validated['store_id'],
+                'department_to'   => $validated['department_to'],
+                'item_problem'    => $validated['item_problem'],
+                'message_user'    => $validated['message_user'],
+                'attachment_user' => $attachmentPath,
+                'pic_user'        => $loggedInUser,
+                'status'          => 'waiting',
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('incidents.index')->with('success', 'Incident created successfully.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+
+            if (str_contains($e->getMessage(), 'Duplicate entry')) {
+                return back()->withErrors([
+                    'unique_id' => 'Duplicate ID generated. Please try again.'
+                ]);
+            }
+
+            return back()->withErrors(['error' => 'Unexpected error: ' . $e->getMessage()]);
+        }
+    }
+
+    public function checkIncidentStatus($equipmentId)
+    {
+        $isReported = Incident::where('item_problem', $equipmentId)
+            ->whereIn('status', ['waiting', 'in progress', 'pending'])
+            ->exists();
+
+        return response()->json(['active' => $isReported]);
+    }
+
+    public function getItemsByStore($storeId, $departmentId)
+    {
+        try {
+            $items = Equipment::where('location', $storeId)
+                ->whereHas('item', function ($q) use ($departmentId) {
+                    $q->where('department_id', $departmentId);
+                })
+                ->with('item:id,name,model,brand') // hanya ambil field penting
+                ->get()
+                ->map(function ($equipment) {
+                    return [
+                        'id' => $equipment->id, // <-- ini id dari equipment (bukan item)
+                        'name' => $equipment->item->name ?? '-',
+                        'model' => $equipment->item->model ?? '-',
+                        'brand' => $equipment->item->brand ?? '-',
+                    ];
+                })
+                ->values(); // reset keys
+
+            return response()->json($items);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch items', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function start($id)
+    {
+        $incident = Incident::findOrFail($id);
+        $this->authorize('incident.proses', $incident);
+
+        $incident->update([
+            'status' => 'in progress',
+            'pic_staff' => Auth::id()
+        ]);
+
+        return redirect()->route('incidents.index')->with('success', 'Incident marked as In Progress.');
+    }
+    public function restart($id)
+    {
+        $incident = Incident::findOrFail($id);
+        $this->authorize('incident.proses', $incident);
+
+        $incident->update([
+            'status' => 'in progress',
+        ]);
+
+        return redirect()->route('incidents.index')->with('success', 'Incident marked as In Progress.');
+    }
+
+    public function pending(Request $request, $id)
+    {
+        $incident = Incident::findOrFail($id);
+        $this->authorize('incident.pending', $incident);
+
+        $incident->update([
+            'status' => 'pending',
+            'message_staff' => $request->notes,
+        ]);
+
+        return redirect()->route('incidents.index')->with('success', 'Incident marked as Pending.');
+    }
+
+    public function resolve($id)
+    {
+        // Authorize the action using a policy or gate
+        // Ensure you have an 'incident.resolve' gate or policy defined.
+        $this->authorize('incident.resolve');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Retrieve incident with complete relationships based on your Incident model
+        $incident = Incident::with([
+            'equipment.item.department', // Access department via equipment -> item
+            'store',                      // Directly using 'store' relationship
+            'user',                       // The 'user' who reported the incident
+            'picUser',                    // The 'picUser' (PIC of the reporter)
+            'equipment.item',                       // The 'item' that has the problem
+            'department',                 // The 'department' the incident is assigned to
+            'confirm',                    // The 'confirm' user
+            'usedSpareParts.sparepart.item' // If incidents use spare parts
+        ])->findOrFail($id);
+
+        // Restrict access based on incident status
+        // Only allow confirmation if the incident status is 'in progress'.
+        if ($incident->status !== 'in progress') {
+            abort(404); // Or abort(403, 'Incident is not in a confirmable state.');
+        }
+
+        // Retrieve spare parts from inventory.
+        // This section is included *only if* incidents can involve spare parts.
+        // If not, you can safely remove the following lines down to `$spareparts = ...`
+        $sparepartsQuery = Sparepart::where('qty', '>', 0)->with('item');
+
+        // Filter available spare parts by department if the user is not a Master and has a department ID
+        if (!$isMaster && $user->department_id) {
+            $sparepartsQuery->whereHas('item.department', function ($q) use ($user) {
+                $q->where('id', $user->department_id);
+            });
+        }
+
+        $spareparts = $sparepartsQuery->get();
+
+        return view('incidents.confirm', compact('incident', 'spareparts'));
+    }
+    public function submitConfirm(Request $request, $id)
+    {
+        $this->authorize('incident.resolve');
+
+        $request->validate([
+            'notes' => 'nullable|string',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov,avi|max:10240',
+            'spareparts' => 'nullable|array',
+            'spareparts.*.id' => 'nullable|exists:spareparts,id',
+            'spareparts.*.qty' => 'nullable|integer|min:1',
+            'spareparts.*.note' => 'nullable|string|max:255',
+        ]);
+
+        $incident = Incident::findOrFail($id);
+
+        // Gabungkan spareparts dengan ID yang sama
+        $groupedSpareparts = [];
+        foreach ($request->spareparts ?? [] as $spare) {
+            $id = $spare['id'];
+            $qty = $spare['qty'];
+            $note = $spare['note'] ?? null;
+
+            if (!isset($groupedSpareparts[$id])) {
+                $groupedSpareparts[$id] = [
+                    'id' => $id,
+                    'qty' => $qty,
+                    'note' => $note,
+                ];
+            } else {
+                $groupedSpareparts[$id]['qty'] += $qty;
+                if ($note && !str_contains($groupedSpareparts[$id]['note'], $note)) {
+                    $groupedSpareparts[$id]['note'] .= '; ' . $note;
+                }
+            }
+        }
+
+        // Validasi stok dulu sebelum simpan
+        foreach ($groupedSpareparts as $spare) {
+            $sparepart = Sparepart::find($spare['id']);
+            if (!$sparepart) continue;
+
+            $availableStock = $sparepart->qty ?? 0;
+            if ($spare['qty'] > $availableStock) {
+                return back()->with('error', 'Insufficient stock for sparepart: ' . $sparepart->item->name)->withInput();
+            }
+        }
+
+        // Handle file attachment
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment')->store('incident_attachments', 'public');
+            $incident->attachment_staff = $file;
+        }
+
+        $incident->message_staff = $request->notes;
+        $incident->status = 'resolved';
+        $incident->resolvedby = Auth::id();
+        $incident->resolved_at = now();
+        $incident->save();
+
+        // Simpan UsedSpareparts yang sudah digabung
+        foreach ($groupedSpareparts as $spare) {
+            $sparepart = Sparepart::find($spare['id']);
+            if (!$sparepart) continue;
+
+            UsedSparepart::create([
+                'spareparts_id' => $spare['id'],
+                'incident_id' => $incident->id,
+                'qty' => $spare['qty'],
+                'note' => $spare['note'] ?? null,
+            ]);
+
+            $sparepart->qty -= $spare['qty'];
+            $sparepart->status = $sparepart->qty < 0
+                ? 'empty'
+                : ($sparepart->qty > 5 ? 'available' : 'low');
+            $sparepart->save();
+        }
+
+        return redirect()->route('incidents.index')->with('success', 'Incident resolved and confirmed successfully.');
+    }
+
+    public function complete($id)
+    {
+        $incident = Incident::findOrFail($id);
+        $this->authorize('incident.closed', $incident);
+
+        $incident->update([
+            'status' => 'completed',
+            'confirmby' => Auth::id(),
+        ]);
+
+        return redirect()->route('incidents.index')->with('success', 'Incident marked as Completed.');
+    }
+    public function show(Incident $incident)
+    {
+        // Load relationships needed for the view, adjusted to your model's relations
+        $incident->load([
+            'equipment.store',       // equipment has a store
+            'equipment.item',        // equipment has an item
+            'user',                  // The reporter (from user_id)
+            'picUser',               // The PIC reporter (from pic_user)
+            'confirm',               // The confirmer (from confirm_by)
+            'store',                 // The store (from location)
+            'equipment.item',                  // The item problem (from item_problem)
+            'usedSpareParts.sparepart.item' // Load nested relationships for used spare parts
+        ]);
+
+        // Get all spare parts for the modal dropdown
+        $spareparts = Sparepart::with('item')->get();
+
+        return view('incidents.show', compact('incident', 'spareparts'));
+    }
+    public function updateSpareparts(Request $request, $id)
+    {
+        $this->authorize('incident.update');
+        $request->validate([
+            'spareparts' => 'nullable|array',
+            'spareparts.*.id' => 'required|exists:spareparts,id',
+            'spareparts.*.qty' => 'required|integer|min:1',
+            'spareparts.*.note' => 'nullable|string|max:255',
+            'spareparts.*.used_id' => 'nullable|exists:used_spareparts,id',
+            'deleted_ids' => 'nullable|array',
+            'deleted_ids.*' => 'exists:used_spareparts,id',
+        ]);
+
+        $incident = Incident::with('usedSpareParts')->findOrFail($id);
+        $oldUsedById = $incident->usedSpareParts->keyBy('id');
+        $newInputs = collect($request->spareparts ?? []);
+        $deletedIds = collect($request->deleted_ids ?? []);
+
+        DB::beginTransaction();
+        try {
+            // Handle deletions
+            foreach ($deletedIds as $deletedId) {
+                $used = UsedSparepart::find($deletedId);
+                if ($used && $used->incident_id === $incident->id) {
+                    $sparepart = Sparepart::findOrFail($used->spareparts_id);
+                    $sparepart->qty += $used->qty;
+                    $sparepart->status = $this->determineStatus($sparepart->qty);
+                    $sparepart->save();
+                    $used->delete();
+                }
+            }
+
+            $groupedInputs = [];
+
+            foreach ($newInputs as $input) {
+                $id = $input['id'];
+                $qty = $input['qty'];
+                $note = $input['note'] ?? null;
+                $usedId = $input['used_id'] ?? null;
+
+                if (!isset($groupedInputs[$id])) {
+                    $groupedInputs[$id] = [
+                        'id' => $id,
+                        'qty' => $qty,
+                        'note' => $note,
+                        'used_id' => $usedId
+                    ];
+                } else {
+                    $groupedInputs[$id]['qty'] += $qty;
+                    if ($note && !str_contains($groupedInputs[$id]['note'], $note)) {
+                        $groupedInputs[$id]['note'] .= '; ' . $note;
+                    }
+                }
+            }
+
+            // Lanjutkan proses seperti biasa
+            foreach ($groupedInputs as $input) {
+                $newSparepartId = $input['id'];
+                $newQty = $input['qty'];
+                $note = $input['note'] === '' ? null : $input['note'];
+                $usedId = $input['used_id'] ?? null;
+
+                $sparepart = Sparepart::with('item')->findOrFail($newSparepartId);
+
+                if ($usedId && $oldUsedById->has($usedId)) {
+                    $used = $oldUsedById[$usedId];
+                    $oldSparepartId = $used->spareparts_id;
+                    $oldQty = $used->qty;
+
+                    if ($oldSparepartId != $newSparepartId) {
+                        $oldSparepart = Sparepart::findOrFail($oldSparepartId);
+                        $oldSparepart->qty += $oldQty;
+                        $oldSparepart->status = $this->determineStatus($oldSparepart->qty);
+                        $oldSparepart->save();
+
+                        if ($sparepart->qty < $newQty) {
+                            throw new \Exception("Insufficient stock for sparepart {$sparepart->item->name}. Available: {$sparepart->qty}.");
+                        }
+                        $sparepart->qty -= $newQty;
+                        $sparepart->status = $this->determineStatus($sparepart->qty);
+                        $sparepart->save();
+
+                        $used->spareparts_id = $newSparepartId;
+                        $used->qty = $newQty;
+                        $used->note = $note;
+                        $used->save();
+                    } else {
+                        $deltaQty = $newQty - $oldQty;
+                        if ($deltaQty > 0 && $sparepart->qty < $deltaQty) {
+                            throw new \Exception("Insufficient stock for sparepart {$sparepart->item->name}. Available: {$sparepart->qty}.");
+                        }
+                        $sparepart->qty -= $deltaQty;
+                        $sparepart->status = $this->determineStatus($sparepart->qty);
+                        $sparepart->save();
+
+                        $used->qty = $newQty;
+                        $used->note = $note;
+                        $used->save();
+                    }
+                } else {
+                    // Tambahan pengecekan kalau incident sudah pernah punya UsedSparepart dengan spareparts_id ini
+                    $existingUsed = $incident->usedSpareParts()->where('spareparts_id', $newSparepartId)->first();
+
+                    if ($existingUsed) {
+                        $deltaQty = $newQty;
+                        if ($sparepart->qty < $deltaQty) {
+                            throw new \Exception("Insufficient stock for sparepart {$sparepart->item->name}. Available: {$sparepart->qty}.");
+                        }
+
+                        $sparepart->qty -= $deltaQty;
+                        $sparepart->status = $this->determineStatus($sparepart->qty);
+                        $sparepart->save();
+
+                        $existingUsed->qty += $newQty;
+                        if ($note && !str_contains($existingUsed->note, $note)) {
+                            $existingUsed->note = trim($existingUsed->note . '; ' . $note, '; ');
+                        }
+                        $existingUsed->save();
+                    } else {
+                        if ($sparepart->qty < $newQty) {
+                            throw new \Exception("Insufficient stock for sparepart {$sparepart->item->name}. Available: {$sparepart->qty}.");
+                        }
+
+                        $sparepart->qty -= $newQty;
+                        $sparepart->status = $this->determineStatus($sparepart->qty);
+                        $sparepart->save();
+
+                        UsedSparepart::create([
+                            'spareparts_id' => $newSparepartId,
+                            'incident_id' => $incident->id,
+                            'qty' => $newQty,
+                            'note' => $note,
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+            return back()->with('success', 'Spareparts updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+    }
+
+    private function determineStatus($qty)
+    {
+        return $qty <= 0 ? 'empty' : ($qty < 5 ? 'low' : 'available');
+    }
+    public function edit($id)
+    {
+        $incident = Incident::with(['store', 'department', 'equipment.item'])->findOrFail($id);
+        $this->authorize('incident.edit', $incident); // pastikan ada policy
+
+        return view('incidents.edit', compact('incident'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $incident = Incident::findOrFail($id);
+        $this->authorize('incident.edit', $incident);
+
+        $validated = $request->validate([
+            'attachment_user' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,avi|max:20480',
+            'message_user' => 'required|string|max:1000',
+        ]);
+
+        // Hapus file lama jika ada dan upload baru
+        if ($request->hasFile('attachment_user')) {
+            if ($incident->attachment_user && Storage::disk('public')->exists($incident->attachment_user)) {
+                Storage::disk('public')->delete($incident->attachment_user);
+            }
+
+            $path = $request->file('attachment_user')->store('incident_attachments', 'public');
+            $incident->attachment_user = $path;
+        }
+
+        $incident->message_user = $validated['message_user'];
+        $incident->save();
+
+        return redirect()->route('incidents.index')->with('success', 'Incident updated successfully.');
+    }
+}
