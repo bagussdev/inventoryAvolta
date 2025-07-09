@@ -46,24 +46,20 @@
         </div>
 
         {{-- Latest Maintenance Table --}}
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
-            <div class="flex justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Maintenance</h3>
-                <a href="{{ route('maintenances.index') }}" class="text-sm text-purple-600 hover:underline">More
-                    Maintenance</a>
-            </div>
-            <x-table.maintenance :data="$maintenanceList" />
+        <div class="flex justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Maintenance</h3>
+            <x-buttons.action-button text="More Maintenance" color="purple" class=""
+                href="{{ route('maintenances.index') }}" onclick="showFullScreenLoader()" />
         </div>
+        <x-table.maintenance :maintenances="$maintenances" :perPage="null" :showPagination="false" />
 
         {{-- Latest Incident Table --}}
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
-            <div class="flex justify-between mb-4">
-                <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Incident</h3>
-                <a href="{{ route('incidents.index') }}" class="text-sm text-purple-600 hover:underline">More
-                    Incident</a>
-            </div>
-            <x-table.incident :data="$incidentList" />
+        <div class="flex justify-between mb-4 mt-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Incidents</h3>
+            <x-buttons.action-button text="More Incidents" color="purple" class=""
+                href="{{ route('incidents.index') }}" onclick="showFullScreenLoader()" />
         </div>
+        <x-table.incident :incidents="$incidents" :perPage="null" :showPagination="false" />
 
     </x-dashboard.sidebar>
 </x-app-layout>

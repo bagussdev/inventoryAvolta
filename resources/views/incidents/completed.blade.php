@@ -36,41 +36,44 @@
 
         <div class="relative overflow-x-auto shadow-md sm:rounded-lg mt-5" id="incident-list">
             <input class="search hidden" />
-            <table class="min-w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400 text-center">
-                <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+            <table
+                class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs sm:text-sm text-center text-gray-600 dark:text-gray-300">
+                <thead
+                    class="bg-gray-50 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-400 whitespace-nowrap">
                     <tr>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="no">No</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="id">Incident Id</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="report">Reported By</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="department">Report To</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="equipment">Equipment</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="location">Location</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="date">Start</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="staff">PIC Staff</th>
-                        <th class="px-5 py-4 cursor-pointer sort" data-sort="status">Status</th>
-                        <th class="px-5 py-4">Action</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="no">No</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="id">Incident Id</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="report">Reported By</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="department">Report To</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Equipment</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="location">Location</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Start</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="staff">PIC Staff</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3">Action</th>
                     </tr>
                 </thead>
-                <tbody class="list">
+                <tbody class="list whitespace-nowrap">
                     @forelse ($incidents as $incident)
-                        <tr
-                            class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
-                            <td class="px-5 py-4 no">{{ $loop->iteration }}</td>
-                            <td class="px-5 py-4 id">{{ $incident->unique_id ?? '-' }}</td>
-                            <td class="px-5 py-4 report">{{ $incident->user->name ?? '-' }}</td>
-                            <td class="px-5 py-4 department">{{ $incident->department->name ?? '-' }}</td>
-                            <td class="px-5 py-4 equipment">{{ $incident->equipment->item->name ?? '-' }}</td>
-                            <td class="px-5 py-4 location">{{ $incident->store->site_code ?? '-' }}</td>
-                            <td class="px-5 py-4 date">
-                                {{ \Carbon\Carbon::parse($incident->created_at)->format('d M Y') }}
+                        <tr class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}>
+                            <td class="px-4
+                            py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $incident->unique_id ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}
                             </td>
-                            <td class="px-5 py-4 staff">{{ $incident->picUser->name ?? '-' }}</td>
-                            <td class="px-5 py-4 status">
+                            <td class="px-4 py-2 md:px-6 md:py-3 equipment">
+                                {{ ucfirst(strtolower($incident->equipment->item->name ?? '-')) }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $incident->store->site_code ?? '-' }}
+                            </td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 date">
+                                {{ \Carbon\Carbon::parse($incident->created_at)->format('d M Y') }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 staff">{{ $incident->picUser->name ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 status">
                                 @php
                                     $status = strtolower($incident->status);
                                     $color = match ($status) {
-                                        'resolved' => 'bg-green-100 text-green-800',
-                                        'completed' => 'bg-green-100 text-green-800',
+                                        'resolved', 'completed' => 'bg-green-100 text-green-800',
                                         'in progress' => 'bg-blue-100 text-blue-800',
                                         'pending' => 'bg-red-100 text-red-800',
                                         'waiting' => 'bg-yellow-100 text-yellow-600',
@@ -78,21 +81,23 @@
                                     };
                                 @endphp
                                 <span
-                                    class="inline-block px-2 py-0.5 sm:px-3 sm:py-1 text-[12px] sm:text-sm font-semibold rounded-md {{ $color }}">
+                                    class="inline-block px-3 py-1 text-xs font-medium rounded-md {{ $color }}">
                                     {{ ucfirst($incident->status) }}
                                 </span>
                             </td>
-                            <td class="px-3 py-2">
-                                <div class="flex flex-col sm:flex-row flex-wrap gap-2 justify-center items-center">
-                                    <x-buttons.action-button text="Detail" color="purple"
-                                        href="{{ route('incidents.showCompletedDetail', $incident->id) }}"
-                                        onclick="showFullScreenLoader();" />
+                            <td class="px-4 py-2 md:px-6 md:py-3">
+                                <div class="flex justify-center gap-2">
+                                    <a href="{{ route('incidents.showCompletedDetail', $incident->id) }}"
+                                        onclick="showFullScreenLoader();"
+                                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600">
+                                        Detail
+                                    </a>
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="text-center py-4">No incident data found.</td>
+                            <td colspan="10" class="text-center py-4 text-xs">No incident data found.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -105,6 +110,9 @@
                 <div class="flex items-center gap-4 flex-wrap justify-end">
                     <form method="GET" action="{{ route('incidents.completed') }}"
                         onsubmit="showFullScreenLoader();">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                        <input type="hidden" name="start_date" value="{{ request('start_date') }}">
+                        <input type="hidden" name="end_date" value="{{ request('end_date') }}">
                         <div class="flex items-center gap-1">
                             <label for="per_page" class="text-sm text-gray-600 dark:text-gray-300">Show</label>
                             <select name="per_page" id="per_page" onchange="this.form.submit()"

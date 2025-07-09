@@ -27,4 +27,8 @@ class UsedSparepart extends Model
     {
         return $this->belongsTo(Incident::class, 'incident_id');
     }
+    public function request()
+    {
+        return $this->belongsTo(Request::class, 'request_id');
+    }
 }

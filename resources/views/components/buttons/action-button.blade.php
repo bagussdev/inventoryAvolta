@@ -7,7 +7,7 @@
 
 @php
     $baseClass =
-        'w-full sm:w-auto min-w-[90px] px-3 py-1 text-sm font-medium rounded-md focus:outline-none focus:ring-2 text-center transition';
+        'w-full sm:w-auto min-w-[90px] px-3 py-1 text-sm font-medium rounded-md focus:outline-none focus:ring-2 text-center transition text-[10px] sm:text-xs px-3 py-1.5 sm:px-4 sm:py-2';
     $colorClass = match ($color) {
         'purple' => 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-300',
         'green' => 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-300',
