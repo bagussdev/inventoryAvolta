@@ -13,8 +13,12 @@
                         </path>
                     </svg>
                 </button>
-                <a href="#" class="flex ms-2 md:me-24" onclick="showFullScreenLoader();">
-                    <span class="self-center text-base font-bold sm:text-2xl whitespace-nowrap text-purple-600 ">
+                <a href="{{ route('dashboard') }}" class="flex items-center gap-2 ms-2 md:me-24"
+                    onclick="showFullScreenLoader();">
+                    <img src="{{ asset('assets/logo.png') }}" alt="Logo"
+                        class="h-8 w-8 sm:h-10 sm:w-10 object-contain">
+                    <span
+                        class="hidden sm:block self-center text-base font-bold sm:text-2xl whitespace-nowrap text-purple-600">
                         Inventory Avolta
                     </span>
                 </a>
@@ -23,15 +27,8 @@
             {{-- User Info --}}
             <div class="flex items-center">
                 <div class="flex items-center gap-4 ms-3">
-                    <div>
-                        <button type="button"
-                            class="flex text-sm bg-gray-800 rounded-full focus:ring-4 focus:ring-gray-300 dark:focus:ring-gray-600"
-                            aria-expanded="false" data-dropdown-toggle="dropdown-user">
-                            <span class="sr-only">Open user menu</span>
-                            <img class="w-8 h-8 rounded-full hidden sm:block"
-                                src="https://flowbite.com/docs/images/people/profile-picture-5.jpg" alt="user photo">
-                        </button>
-                    </div>
+                    @include('components.notif')
+
                     <div>
                         <p class="font-bold capitalize text-sm sm:text-base">{{ Auth::user()->name }}</p>
                         <p class="text-xs sm:text-sm text-slate-400">

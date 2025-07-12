@@ -22,8 +22,6 @@ class MaintenanceController extends Controller
 
     public function index(Request $request)
     {
-        // Otorisasi: Pastikan pengguna memiliki izin untuk melihat daftar maintenance
-        // Ganti 'maintenance.view' dengan nama permission yang sesuai jika berbeda
         $this->authorize('maintenancemenu');
 
         $perPage = $request->input('per_page', 5);
@@ -31,21 +29,19 @@ class MaintenanceController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $user = Auth::user(); // Ambil data user yang sedang login
-        $isMaster = Gate::allows('isMaster'); // Cek apakah user adalah master
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
 
-        $maintenancesQuery = Maintenance::query()
-            // Eager load relasi yang dibutuhkan untuk tampilan tabel dan pencarian
+        $maintenancesQuery = Maintenance::query()->oldest('maintenance_date')
             ->with(['equipment.item', 'equipment.store', 'staff', 'confirm'])
-            ->whereNotIn('status', ['completed', 'cancelled']); // Filter status yang sudah ada
+            ->whereNotIn('status', ['completed', 'cancelled']);
 
-        // 1. Filter Pencarian (sesuai kode Anda)
         $maintenancesQuery->when($search, function ($query) use ($search) {
-            $query->where(function ($q) use ($search) { // Group orWhere clauses correctly
-                $q->where('id', 'like', "%{$search}%") // Maintenance ID
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
                     ->orWhere('frequensi', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhere('maintenance_date', 'like', "%{$search}%") // Pencarian tanggal dalam string
+                    ->orWhere('maintenance_date', 'like', "%{$search}%")
                     ->orWhereHas('equipment.item', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%")
                             ->orWhere('brand', 'like', "%{$search}%")
@@ -54,44 +50,116 @@ class MaintenanceController extends Controller
                     ->orWhereHas('equipment.store', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     })
-                    // Asumsi 'picstaff' di kode Anda merujuk ke relasi 'staff'
                     ->orWhereHas('staff', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     })
-                    // Asumsi 'confirmby' di kode Anda merujuk ke relasi 'confirm'
                     ->orWhereHas('confirm', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
             });
         });
 
-        // --- TAMBAHAN BARU: LOGIKA GATE ISMASTER DI SINI ---
-        // 2. Filter Department (jika bukan Master)
         if (!$isMaster) {
             if ($user->department_id) {
                 $maintenancesQuery->whereHas('equipment.item', function ($q) use ($user) {
                     $q->where('department_id', $user->department_id);
                 });
             } else {
-                // Jika user tidak punya department atau department_id-nya null, kembalikan query kosong
                 $maintenancesQuery->whereNull('id');
             }
         }
 
-        // --- TAMBAHAN BARU: Filter berdasarkan rentang tanggal `maintenance_date` ---
         $maintenancesQuery->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
             $query->whereBetween('maintenance_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         });
 
-        // Urutkan berdasarkan maintenance_date terbaru
-        $maintenances = $maintenancesQuery->orderBy('maintenance_date', 'desc')
-            ->paginate($perPage);
-
-        // appends() untuk mempertahankan semua filter pada pagination link
-        $maintenances->appends(compact('search', 'perPage', 'startDate', 'endDate'));
+        if ($perPage === 'all') {
+            $maintenances = $maintenancesQuery->orderBy('maintenance_date', 'desc')->get();
+        } else {
+            $maintenances = $maintenancesQuery->orderBy('maintenance_date', 'desc')
+                ->paginate((int) $perPage);
+            $maintenances->appends(compact('search', 'perPage', 'startDate', 'endDate'));
+        }
 
         return view('maintenances.index', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate'));
     }
+    public function tbody(Request $request)
+    {
+        $perPage = $request->input('per_page', 5);
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Maintenance::query()->oldest('maintenance_date')
+            ->with(['equipment.item', 'equipment.store', 'staff', 'confirm'])
+            ->whereNotIn('status', ['completed', 'cancelled']);
+
+        // Pencarian
+        $query->when($search, function ($query) use ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('id', 'like', "%{$search}%")
+                    ->orWhere('frequensi', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('maintenance_date', 'like', "%{$search}%")
+                    ->orWhereHas('equipment.item', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('equipment.store', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('staff', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('confirm', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
+            });
+        });
+
+        // Filter department
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('equipment.item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        // Filter tanggal
+        if ($startDate && $endDate) {
+            $query->whereBetween('maintenance_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        // Handle perPage
+        if ($perPage === 'all') {
+            $maintenances = $query->orderBy('maintenance_date', 'desc')->get();
+        } else {
+            $maintenances = $query->orderBy('maintenance_date', 'desc')->paginate((int) $perPage);
+        }
+
+        return view('partials.maintenances-tbody', compact('maintenances', 'perPage'));
+    }
+    public function lastUpdated()
+    {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Maintenance::query()->whereNotIn('status', ['completed', 'cancelled']);
+
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('equipment.item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        $lastUpdated = $query->max('updated_at');
+
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
+
     public function export(Request $request)
     {
         $this->authorize('maintenancemenu');
@@ -167,7 +235,7 @@ class MaintenanceController extends Controller
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
-        $maintenancesQuery = Maintenance::query()
+        $maintenancesQuery = Maintenance::query()->latest('maintenance_date')
             ->with(['equipment.item', 'equipment.store', 'staff', 'confirm'])
             ->whereIn('status', ['completed']); // Filter status = 'completed'
 
@@ -329,7 +397,7 @@ class MaintenanceController extends Controller
         $maintenance->frequensi = $request->frequensi;
         $maintenance->maintenance_date = $request->maintenance_date;
 
-        $daysDiff = \Carbon\Carbon::now()->diffInDays($maintenance->maintenance_date, false);
+        $daysDiff = Carbon::now()->diffInDays($maintenance->maintenance_date, false);
 
         // Update status berdasarkan selisih hari
         if ($daysDiff <= 1) {

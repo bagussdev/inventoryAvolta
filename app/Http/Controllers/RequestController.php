@@ -34,7 +34,7 @@ class RequestController extends Controller
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
-        $query = RequestModel::with(['user', 'store'])
+        $query = RequestModel::with(['user', 'store'])->oldest('created_at')
             ->whereNotIn('status', ['completed']);
 
         if ($search) {
@@ -59,9 +59,67 @@ class RequestController extends Controller
             $query->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"]);
         }
 
-        $requests = $query->latest('created_at')->paginate($perPage)->appends($request->query());
-
+        if ($perPage === 'all') {
+            $requests = $query->orderByDesc('created_at')->get();
+        } else {
+            $requests = $query->orderByDesc('created_at')->paginate((int) $perPage)->appends($request->query());
+        }
         return view('requests.index', compact('requests', 'perPage', 'search', 'startDate', 'endDate'));
+    }
+    public function tbody(Request $request)
+    {
+        $perPage = $request->input('per_page', 5);
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = RequestModel::with(['user', 'store'])->oldest('created_at')->whereNotIn('status', ['completed']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('unique_id', 'like', "%{$search}%")
+                    ->orWhere('item_request', 'like', "%{$search}%")
+                    ->orWhere('qty', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('store', function ($sub) use ($search) {
+                        $sub->where('site_code', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!$isMaster && $user->store_location) {
+            $query->where('location', $user->store_location);
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"]);
+        }
+
+        $requests = $perPage === 'all'
+            ? $query->orderByDesc('created_at')->get()
+            : $query->orderByDesc('created_at')->paginate((int) $perPage);
+
+        return view('partials.requests-tbody', compact('requests'));
+    }
+    public function lastUpdated()
+    {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = RequestModel::query();
+
+        if (!$isMaster && $user->store_location) {
+            $query->where('location', $user->store_location);
+        }
+
+        $lastUpdated = $query->max('updated_at');
+
+        return response()->json(['last_updated' => $lastUpdated]);
     }
 
     public function completed(Request $request)

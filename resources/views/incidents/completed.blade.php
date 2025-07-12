@@ -25,10 +25,6 @@
                         Search
                     </button>
                 </form>
-                {{-- <a href="{{ route('incidents.create') }}" onclick="showFullScreenLoader();"
-                    class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-purple-600 hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 font-medium rounded-md focus:outline-none dark:bg-purple-500 dark:hover:bg-purple-600 dark:focus:ring-purple-700 text-center">
-                    Create New Incident
-                </a> --}}
             </div>
         </div>
 
@@ -47,7 +43,7 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="department">Report To</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Equipment</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="location">Location</th>
-                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Start</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Date</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="staff">PIC Staff</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
                         <th class="px-4 py-2 md:px-6 md:py-3">Action</th>
@@ -55,9 +51,11 @@
                 </thead>
                 <tbody class="list whitespace-nowrap">
                     @forelse ($incidents as $incident)
-                        <tr class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}>
+                        <tr
+                            class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                             <td class="px-4
-                            py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
+                            py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
+                            </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $incident->unique_id ?? '-' }}</td>
                             <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
                             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}

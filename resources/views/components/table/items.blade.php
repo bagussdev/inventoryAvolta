@@ -16,76 +16,73 @@
                         <th class="px-4 py-2 md:px-6 md:py-3">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="list">
-                    @forelse ($items as $item)
-                        <tr
-                            class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize no">{{ $loop->iteration }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize id">{{ $item->id }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize name">{{ strtolower($item->name) }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize type">{{ strtolower($item->type) }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize brand">{{ strtolower($item->brand) }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 uppercase model">{{ $item->model }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 capitalize category">{{ strtolower($item->category) }}
-                            </td>
-                            <td class="px-2 py-2 md:px-4 md:py-3">
-                                <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
-                                    @can('inventoryitems.edit')
-                                        <x-buttons.action-button text="Edit" color="blue" class=""
-                                            href="{{ route('items.edit', $item->id) }}" onclick="showFullScreenLoader();" />
-                                    @endcan
 
-                                    @can('inventoryitems.delete')
-                                        <form action="{{ route('items.destroy', $item->id) }}" method="POST"
-                                            onsubmit="return confirmAndLoad('Are you sure to deleted?')"
-                                            class="inline-block">
-                                            @csrf
-                                            @method('DELETE')
-                                            <x-buttons.action-button text="Delete" color="red" class="" />
-                                        </form>
-                                    @endcan
-
-                                    <x-buttons.action-button text="Detail" color="purple" class="" href="#"
-                                        onclick="showFullScreenLoader();" />
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-4 text-xs">Tidak ada Item</td>
-                        </tr>
-                    @endforelse
-                </tbody>
+                @include('partials.items-tbody', [
+                    'items' => $items,
+                    'search' => $search,
+                    'perPage' => $perPage,
+                ])
             </table>
         </div>
     </div>
 </div>
-
-{{-- Pagination + Per Page --}}
-<div class="mt-6 px-4 pb-3 flex flex-col sm:flex-row justify-between items-center gap-4">
-    <div>
-        {{ $items->appends(['per_page' => $perPage, 'search' => $search])->links() }}
-    </div>
-    <div class="flex items-center gap-4 flex-wrap justify-end">
-        <form method="GET" action="{{ route('items.index') }}" onsubmit="showFullScreenLoader();">
-            <div class="flex items-center gap-1">
-                <label for="per_page" class="text-sm text-gray-600 dark:text-gray-300">Show</label>
-                <select name="per_page" id="per_page" onchange="this.form.submit()"
-                    class="text-sm w-16 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500">
-                    <option value="5" {{ $perPage == 5 ? 'selected' : '' }}>5</option>
-                    <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
-                    <option value="20" {{ $perPage == 20 ? 'selected' : '' }}>20</option>
-                </select>
-                <span class="text-sm text-gray-600 dark:text-gray-400">per page</span>
-            </div>
-        </form>
-    </div>
-</div>
+<p id="last-updated-display" class="text-xs text-gray-400 mt-2">
+    Last updated at: {{ $items->max('updated_at') }}
+</p>
+{{-- Pagination --}}
+<x-per-page-selector :items="$items" route="items.index" :perPage="$perPage" :search="$search" :showPagination="true" />
 
 @push('scripts')
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>
+        console.log("Polling script loaded...");
         const itemList = new List('items-list', {
             valueNames: ['no', 'id', 'name', 'type', 'brand', 'model', 'category']
         });
+
+        let lastKnownUpdate = "{{ $items->max('updated_at') }}";
+
+        function refreshItemsTbody() {
+            const search = '{{ request('search') }}';
+            const perPage = '{{ request('per_page', 5) }}';
+            const loadingRow = document.getElementById('loading-indicator');
+            const tbody = document.querySelector('#items-body');
+
+            if (loadingRow) loadingRow.classList.remove('hidden');
+
+            fetch(`/items/tbody?search=${search}&per_page=${perPage}`)
+                .then(res => res.text())
+                .then(html => {
+                    if (tbody) {
+                        tbody.innerHTML = html;
+                        itemList.reIndex();
+                    }
+                })
+                .catch(err => {
+                    console.error("Failed to fetch updated items:", err);
+                })
+                .finally(() => {
+                    if (loadingRow) loadingRow.classList.add('hidden');
+                });
+        }
+
+        async function checkForItemUpdates() {
+            try {
+                const res = await fetch('/items/last-updated');
+                const data = await res.json();
+                if (data.last_updated !== lastKnownUpdate) {
+                    lastKnownUpdate = data.last_updated;
+                    refreshItemsTbody();
+                }
+                const updatedEl = document.getElementById('last-updated-display');
+                if (updatedEl) {
+                    updatedEl.textContent = 'Last updated at: ' + data.last_updated;
+                }
+            } catch (err) {
+                console.error('Error checking item updates:', err);
+            }
+        }
+
+        setInterval(checkForItemUpdates, 10000); // periksa setiap 10 detik
     </script>
 @endpush

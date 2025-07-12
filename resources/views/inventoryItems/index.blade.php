@@ -40,5 +40,6 @@
 
         <x-table.items :items="$items" :perPage="$perPage" :search="$search" :showPagination="true" />
 
+
     </x-dashboard.sidebar>
 </x-app-layout>

@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Department;
+use App\Services\NotificationService;
 
 class ItemController extends Controller
 {
@@ -52,14 +53,62 @@ class ItemController extends Controller
 
         // 7. Urutkan berdasarkan yang terbaru (tanggal dibuat)
         // Ini adalah cara paling efisien untuk mengurutkan terbaru
-        $items = $itemsQuery->latest() // Setara dengan orderBy('created_at', 'desc')
-            ->paginate($perPage)
-            ->appends(compact('search', 'perPage'));
-
+        if ($perPage === 'all') {
+            $items = $itemsQuery->get(); // tanpa paginate
+        } else {
+            $items = $itemsQuery->latest()
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage'));
+        }
         // 8. Kirim data ke view
         return view('inventoryitems.index', compact('items', 'search', 'perPage'));
     }
+    public function tbody(Request $request)
+    {
+        $this->authorize('inventoryitemsmenu');
 
+        $perPage = $request->input('per_page', 5);
+        $search = $request->input('search');
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $itemsQuery = Item::query()
+            ->with('department')
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%")
+                        ->orWhere('model', 'like', "%{$search}%")
+                        ->orWhere('type', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%");
+                });
+            });
+
+        if (!$isMaster) {
+            if ($user->department_id) {
+                $itemsQuery->where('department_id', $user->department_id);
+            } else {
+                $itemsQuery->whereNull('department_id');
+            }
+        }
+
+        if ($perPage === 'all') {
+            $items = $itemsQuery->get(); // tanpa paginate
+        } else {
+            $items = $itemsQuery->latest()
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage'));
+        }
+
+        return view('partials.items-tbody', compact('items', 'search', 'perPage'));
+    }
+    public function lastUpdated()
+    {
+        $lastUpdated = Item::max('updated_at');
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
+    public function show() {}
     public function create()
     {
         $this->authorize('inventoryitems.create');
@@ -67,36 +116,6 @@ class ItemController extends Controller
         return view('inventoryitems.create', compact('departments'));
     }
 
-    // public function store(Request $request)
-    // {
-
-    //     $this->authorize('inventoryitems.create');
-    //     $isMaster = Gate::allows('isMaster');
-
-
-    //     $request->validate([
-    //         'name' => 'required',
-    //         'type' => 'required|in:Unit,Pcs,Box',
-    //         'brand' => 'required',
-    //         'model' => 'required',
-    //         'category' => 'required',
-    //     ]);
-
-    //     $existingItem = Item::where('name', $request->name)
-    //         ->where('brand', $request->brand)
-    //         ->where('model', $request->model)
-    //         ->first();
-
-    //     if ($existingItem) {
-    //         return redirect()->back()
-    //             ->withInput()
-    //             ->with('error', 'Item is already available.');
-    //     }
-
-    //     Item::create($request->all());
-
-    //     return redirect()->route('items.index')->with('success', 'Item berhasil ditambahkan.');
-    // }
     public function store(Request $request)
     {
         $this->authorize('inventoryitems.create');
@@ -148,8 +167,27 @@ class ItemController extends Controller
         $validatedData['model'] = strtoupper($validatedData['model']);
 
 
-        Item::create($validatedData);
+        $item = Item::create($validatedData);
 
+        $departmentId = $item->department_id;
+        $user = Auth::user(); // user yang melakukan aksi
+
+        // Siapkan target notifikasi
+        $targets = [
+            ['role_id' => 1], // Master
+            ['role_id' => 3, 'department_id' => $departmentId], // SPV department terkait
+            ['role_id' => 4, 'department_id' => $departmentId], // Staff department terkait
+        ];
+
+        // Kirim notifikasi
+        NotificationService::send(
+            $targets,
+            'item',
+            'New Item Added',
+            'Item "' . $item->name . '" has been added to department by ' . $user->name . '.',
+            'items',
+            $item->id
+        );
         return redirect()->route('items.index')->with('success', 'Item berhasil ditambahkan.');
     }
 

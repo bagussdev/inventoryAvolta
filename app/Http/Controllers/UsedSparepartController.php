@@ -27,10 +27,7 @@ class UsedSparepartController extends Controller
         $isMaster = Gate::allows('isMaster');
 
         $usedsQuery = UsedSparepart::query()
-            // Memuat relasi sparepart, itemnya, serta maintenance dan incident untuk reference
             ->with(['sparepart.item', 'maintenance', 'incident'])
-
-            // 1. Filter Pencarian (sesuai kode Anda)
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('sparepart.item', function ($sub) use ($search) {
@@ -50,33 +47,95 @@ class UsedSparepartController extends Controller
                 });
             });
 
-        // --- KEMBALIKAN LOGIKA GATE ISMASTER DI SINI ---
-        // 2. Filter Department (jika bukan Master)
-        if (!$isMaster) {
-            if ($user->department_id) {
-                $usedsQuery->whereHas('sparepart.item', function ($q) use ($user) {
-                    $q->where('department_id', $user->department_id);
-                });
-            } else {
-                // Jika user tidak punya department, kembalikan query kosong
-                $usedsQuery->whereNull('id');
-            }
+        if (!$isMaster && $user->department_id) {
+            $usedsQuery->whereHas('sparepart.item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
         }
 
-        // --- TAMBAHAN BARU: Filter berdasarkan rentang tanggal ---
-        $usedsQuery->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
-            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
-        });
+        if ($startDate && $endDate) {
+            $usedsQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
 
-        // 3. Paginate & render
-        $useds = $usedsQuery->latest('created_at')
-            ->paginate($perPage);
+        // 🔧 Perbedaan di sini: jika all, pakai get(); jika tidak, paginate
+        if ($perPage === 'all') {
+            $useds = $usedsQuery->latest('created_at')->get();
+        } else {
+            $useds = $usedsQuery->latest('created_at')
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
+        }
 
-        // appends() untuk mempertahankan semua filter pada pagination link
-        $useds->appends(compact('search', 'perPage', 'startDate', 'endDate'));
-
-        // Pass semua variabel ke view
         return view('used_spareparts.index', compact('useds', 'search', 'perPage', 'startDate', 'endDate'));
+    }
+    public function tbody(Request $request)
+    {
+        $perPage = $request->input('per_page', 5);
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = UsedSparepart::with(['sparepart.item', 'maintenance', 'incident'])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->whereHas('sparepart.item', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                        ->orWhere('qty', 'like', "%{$search}%")
+                        ->orWhere('note', 'like', "%{$search}%")
+                        ->orWhere(function ($q) use ($search) {
+                            if (strtolower($search) === 'maintenance') {
+                                $q->whereNotNull('maintenance_id');
+                            } elseif (strtolower($search) === 'incident') {
+                                $q->whereNotNull('incident_id');
+                            }
+                        })
+                        ->orWhere('maintenance_id', 'like', "%{$search}%")
+                        ->orWhere('incident_id', 'like', "%{$search}%");
+                });
+            });
+
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('sparepart.item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        if ($perPage === 'all') {
+            $useds = $query->latest('created_at')->get();
+        } else {
+            $useds = $query->latest('created_at')->paginate((int)$perPage);
+        }
+
+        return view('partials.used_spareparts-tbody', compact('useds'));
+    }
+    public function lastUpdated(Request $request)
+    {
+        $this->authorize('historytransactionsmenu'); // Sesuaikan dengan policy yang kamu pakai
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = UsedSparepart::query();
+
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('sparepart.item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        $lastUpdated = $query->max('updated_at');
+
+        return response()->json([
+            'last_updated' => $lastUpdated
+        ]);
     }
 
     /**

@@ -38,7 +38,7 @@ class IncidentController extends Controller
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
-        $incidentsQuery = Incident::query()
+        $incidentsQuery = Incident::query()->oldest('created_at')
             // Eager load all relationships that might be needed for display or filtering
             ->with([
                 'equipment',         // Direct relation for 'item_problem'
@@ -119,6 +119,115 @@ class IncidentController extends Controller
 
         return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
     }
+
+    public function tbody(Request $request)
+    {
+        $perPage    = $request->input('per_page', 5);
+        $search     = $request->input('search');
+        $startDate  = $request->input('start_date');
+        $endDate    = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Incident::with([
+            'equipment.item',
+            'store',
+            'user',
+            'picUser',
+            'confirm',
+            'resolve'
+        ])->oldest('created_at')->whereNotIn('status', ['completed']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('unique_id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhere('message_user', 'like', "%{$search}%")
+                    ->orWhere('message_staff', 'like', "%{$search}%")
+                    ->orWhereHas('equipment.item', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('store', function ($sub) use ($search) {
+                        $sub->where('site_code', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('picUser', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('confirm', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('resolve', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                if ($user->store_location) {
+                    $query->where('location', $user->store_location);
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            } else {
+                if ($user->department_id) {
+                    $query->whereHas('equipment.item', function ($q) use ($user) {
+                        $q->where('department_id', $user->department_id);
+                    });
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            }
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        if ($perPage === 'all') {
+            $incidents = $query->latest('created_at')->get();
+        } else {
+            $incidents = $query->latest('created_at')->paginate((int) $perPage);
+        }
+
+        return view('partials.incidents-tbody', compact('incidents', 'perPage'));
+    }
+    public function lastUpdated()
+    {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Incident::query();
+
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                if ($user->store_location) {
+                    $query->where('location', $user->store_location);
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            } else {
+                if ($user->department_id) {
+                    $query->whereHas('equipment.item', function ($q) use ($user) {
+                        $q->where('department_id', $user->department_id);
+                    });
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            }
+        }
+
+        $lastUpdated = $query->max('updated_at');
+
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
+
     public function export(Request $request)
     {
         // Otorisasi
@@ -374,22 +483,45 @@ class IncidentController extends Controller
         $validated = $request->validate([
             'store_id'        => 'required|exists:store,id',
             'department_to'   => 'required|exists:departments,id',
-            'item_problem'    => 'required|exists:equipments,id',
+            'item_problem'    => ['required', function ($attribute, $value, $fail) {
+                if ($value !== 'others' && !Equipment::where('id', $value)->exists()) {
+                    $fail('The selected item problem is invalid.');
+                }
+            }],
             'message_user'    => 'required|string|max:1000',
             'attachment_user' => 'required|file|mimes:jpeg,png,jpg,gif,mp4,mov,avi|max:20480',
+            'item_description' => $request->item_problem === 'others' ? 'required|string|max:50' : 'nullable',
         ]);
 
         $loggedInUser = Auth::id();
+        if ($request->item_problem === 'others') {
+            $request->validate([
+                'item_description' => 'required|string|max:50',
+            ]);
+        }
+        if ($validated['item_problem'] !== 'others') {
+            // Cek duplikat untuk item dari equipment
+            $existing = Incident::where('item_problem', $validated['item_problem'])
+                ->whereIn('status', ['waiting', 'in progress', 'pending', 'resolved'])
+                ->exists();
 
-        // Cek jika item sudah dilaporkan sebelumnya dan masih aktif
-        $existing = Incident::where('item_problem', $validated['item_problem'])
-            ->whereIn('status', ['waiting', 'in progress', 'pending'])
-            ->exists();
+            if ($existing) {
+                return back()->withErrors([
+                    'item_problem' => 'This item is already reported and is still being handled.'
+                ])->withInput();
+            }
+        } else {
+            // Cek duplikat untuk item dari description (Others)
+            $existing = Incident::where('item_problem', null)
+                ->where('item_description', $request->item_description)
+                ->whereIn('status', ['waiting', 'in progress', 'pending', 'resolved'])
+                ->exists();
 
-        if ($existing) {
-            return back()->withErrors([
-                'item_problem' => 'This item is already reported and is still being handled.'
-            ])->withInput();
+            if ($existing) {
+                return back()->withErrors([
+                    'item_description' => 'This item description is already reported and still being handled.'
+                ])->withInput();
+            }
         }
 
         try {
@@ -414,7 +546,8 @@ class IncidentController extends Controller
                 'unique_id'       => $newUniqueId,
                 'location'        => $validated['store_id'],
                 'department_to'   => $validated['department_to'],
-                'item_problem'    => $validated['item_problem'],
+                'item_problem'    => $validated['item_problem'] !== 'others' ? $validated['item_problem'] : null,
+                'item_description' => $validated['item_problem'] === 'others' ? strtolower($request->item_description) : null,
                 'message_user'    => $validated['message_user'],
                 'attachment_user' => $attachmentPath,
                 'pic_user'        => $loggedInUser,

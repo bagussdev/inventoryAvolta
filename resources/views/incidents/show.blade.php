@@ -45,7 +45,9 @@
                     @php
                         $mobileFields = [
                             'ID Incident' => $incident->unique_id,
-                            'Item' => $incident->item->name ?? '-',
+                            'Item' => ucwords(
+                                strtolower($incident->equipment->item->name ?? ($incident->item_description ?? '-')),
+                            ),
                             'Model' => $incident->item->model ?? '-',
                             'Brand' => $incident->item->brand ?? '-',
                             'Location' => $incident->store->name ?? '-',
@@ -98,7 +100,8 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $incident->item->name ?? '-' }}</div>
+                            {{ ucwords(strtolower($incident->equipment->item->name ?? ($incident->item_description ?? '-'))) }}
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Model :</label>

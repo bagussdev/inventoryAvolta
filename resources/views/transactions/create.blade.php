@@ -23,7 +23,6 @@
                 x-init="init">
                 @csrf
 
-                {{-- Category Selector --}}
                 <div class="mb-4">
                     <x-input-label for="category" :value="__('Category')" class="block text-[11px] sm:text-sm" />
                     <select name="category" x-model="category" id="category" @change="updateItems"
@@ -34,15 +33,19 @@
                     </select>
                 </div>
 
-                {{-- Item Selector --}}
                 <div class="mb-4" x-show="category">
-                    <x-input-label for="items_id" :value="__('Items')" class="block text-[11px] sm:text-sm" />
+                    <div class="flex justify-between mt-2 gap-2">
+                        <x-input-label for="items_id" :value="__('Items')" class="block text-[11px] sm:text-sm" />
+                        <button type="button" @click="updateItems"
+                            class="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+                            🔄 Refresh
+                        </button>
+                    </div>
+
                     <select x-ref="itemSelect" name="items_id" id="items_id"
-                        class="mt-1 block w-full text-[11px] sm:text-sm">
-                    </select>
+                        class="mt-1 block w-full text-[11px] sm:text-sm"></select>
                 </div>
 
-                {{-- serial_number + QTY + Supplier --}}
                 <div class="mb-4" x-show="category">
                     <div class="grid grid-cols-3 gap-2">
                         <div x-show="category === 'equipment'">
@@ -68,7 +71,6 @@
                     </div>
                 </div>
 
-                {{-- Photo + Attachment --}}
                 <div class="mb-4" x-show="category">
                     <div class="grid grid-cols-2 gap-2">
                         <div>
@@ -88,11 +90,9 @@
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                    {{-- Photo Preview --}}
                     <div class="mt-2">
                         <img id="photoitems-preview" src="#" alt="Preview" class="max-h-40 rounded hidden">
                     </div>
-                    {{-- Attachment Preview --}}
                     <div class="mt-2">
                         <iframe id="attachmentfile-preview" class="w-full h-40 rounded hidden" frameborder="0"></iframe>
                     </div>
@@ -117,82 +117,107 @@
                     document.addEventListener('alpine:init', () => {
                         Alpine.data('transactionForm', () => ({
                             category: '',
-                            items: @json($items),
+                            items: [],
                             itemSelectInstance: null,
+
                             init() {
-                                this.initTomSelect();
+                                if (!this.itemSelectInstance) {
+                                    this.itemSelectInstance = new TomSelect(this.$refs.itemSelect, {
+                                        placeholder: 'Select item...',
+                                        valueField: 'id',
+                                        labelField: 'text',
+                                        searchField: ['text'],
+                                        render: {
+                                            option: function(data, escape) {
+                                                if (data.id === '__add_new__') {
+                                                    return '<div class="text-purple-600 font-semibold cursor-pointer">➕ Add New Item</div>';
+                                                }
+                                                return `<div>${escape(data.text)}</div>`;
+                                            }
+                                        },
+                                        onChange: (value) => {
+                                            if (value === '__add_new__') {
+                                                window.open("{{ route('items.create') }}", '_blank');
+                                                this.itemSelectInstance.clear();
+                                            }
+                                        },
+                                    });
+                                }
                             },
-                            initTomSelect() {
-                                this.itemSelectInstance = new TomSelect(this.$refs.itemSelect, {
-                                    placeholder: 'Select item...',
-                                    options: [],
-                                    valueField: 'id',
-                                    labelField: 'text',
-                                    searchField: ['text']
-                                });
-                            },
+
                             updateItems() {
-                                const filtered = this.items
-                                    .filter(item => item.category === this.category)
-                                    .map(item => ({
-                                        id: item.id,
-                                        text: `${item.name} - ${item.model} - ${item.category}`
-                                    }));
-                                this.itemSelectInstance.clearOptions();
-                                this.itemSelectInstance.addOptions(filtered);
-                                this.itemSelectInstance.refreshOptions(false);
+                                // Fetch saat kategori dipilih
+                                fetch("{{ route('transactions.json') }}")
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        this.items = data;
+
+                                        const filtered = this.items
+                                            .filter(item => item.category === this.category)
+                                            .sort((a, b) => b.id - a.id)
+                                            .map(item => ({
+                                                id: item.id,
+                                                text: `${item.name} - ${item.model} - ${item.category}`
+                                            }));
+
+                                        filtered.unshift({
+                                            id: '__add_new__',
+                                            text: '➕ Add New Item'
+                                        });
+
+                                        if (this.itemSelectInstance) {
+                                            this.itemSelectInstance.clearOptions();
+                                            this.itemSelectInstance.addOptions(filtered);
+                                            this.itemSelectInstance.refreshOptions(false);
+                                        }
+                                    })
+                                    .catch(err => {
+                                        console.error("Error fetching items:", err);
+                                    });
                             }
-                        }))
+                        }));
+                    });
+                </script>
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        document.querySelectorAll('.uppercase-input').forEach(input => {
+                            input.addEventListener('input', function() {
+                                this.value = this.value.toUpperCase();
+                            });
+                        });
+
+                        const photoInput = document.querySelector('input[name="photoitems"]');
+                        const photoPreview = document.getElementById('photoitems-preview');
+                        if (photoInput) {
+                            photoInput.addEventListener('change', function(e) {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = function(e) {
+                                        photoPreview.src = e.target.result;
+                                        photoPreview.classList.remove('hidden');
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            });
+                        }
+
+                        const attachInput = document.querySelector('input[name="attachmentfile"]');
+                        const attachPreview = document.getElementById('attachmentfile-preview');
+                        if (attachInput) {
+                            attachInput.addEventListener('change', function(e) {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const url = URL.createObjectURL(file);
+                                    attachPreview.src = url;
+                                    attachPreview.classList.remove('hidden');
+                                }
+                            });
+                        }
                     });
                 </script>
             @endpush
+
         </div>
-        {{-- Auto-uppercase --}}
-        @push('scripts')
-            <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    document.querySelectorAll('.uppercase-input').forEach(input => {
-                        input.addEventListener('input', function() {
-                            this.value = this.value.toUpperCase();
-                        });
-                    });
-                });
-            </script>
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    // Preview untuk Foto
-                    const photoInput = document.querySelector('input[name="photoitems"]');
-                    const photoPreview = document.getElementById('photoitems-preview');
-                    if (photoInput) {
-                        photoInput.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    photoPreview.src = e.target.result;
-                                    photoPreview.classList.remove('hidden');
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                    }
-
-                    // Preview untuk Attachment (PDF atau Gambar)
-                    const attachInput = document.querySelector('input[name="attachmentfile"]');
-                    const attachPreview = document.getElementById('attachmentfile-preview');
-                    if (attachInput) {
-                        attachInput.addEventListener('change', function(e) {
-                            const file = e.target.files[0];
-                            if (file) {
-                                const url = URL.createObjectURL(file);
-                                attachPreview.src = url;
-                                attachPreview.classList.remove('hidden');
-                            }
-                        });
-                    }
-                });
-            </script>
-        @endpush
-
     </x-dashboard.sidebar>
 </x-app-layout>

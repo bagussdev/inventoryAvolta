@@ -26,7 +26,8 @@ class Incident extends Model
         'confirmby',
         'pic_staff',
         'resolvedby',
-        'resolved_at'
+        'resolved_at',
+        'item_description'
     ];
 
     // Relasi ke equipment

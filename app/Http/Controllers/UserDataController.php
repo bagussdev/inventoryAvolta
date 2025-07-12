@@ -20,24 +20,61 @@ class UserDataController extends Controller
         $search = $request->input('search');
         $perPage = $request->input('per_page', 5); // default 5
 
-        $users = User::with(['role', 'department'])
+        $query = User::with(['role', 'department', 'location'])
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
                         ->orWhere('no_telfon', 'like', "%{$search}%");
                 });
-            })
-            ->paginate($perPage)
-            ->appends([
-                'search' => $search,
-                'per_page' => $perPage,
-            ]);
+            });
+
+        if ($perPage === 'all') {
+            $users = $query->orderBy('updated_at', 'desc')->get();
+        } else {
+            $users = $query->orderBy('updated_at', 'desc')->paginate((int) $perPage)
+                ->appends([
+                    'search' => $search,
+                    'per_page' => $perPage,
+                ]);
+        }
 
         $perPageOptions = [5, 10, 20];
 
         return view('managementUser.index', compact('users', 'search', 'perPage', 'perPageOptions'));
     }
+    public function tbody(Request $request)
+    {
+        $this->authorize('managementusermenu');
+
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 5);
+
+        $query = User::with(['role', 'department', 'location'])
+            ->when($search, function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('no_telfon', 'like', "%{$search}%");
+                });
+            });
+
+        $users = $perPage === 'all'
+            ? $query->orderByDesc('updated_at')->get()
+            : $query->orderByDesc('updated_at')->paginate((int)$perPage)->appends($request->query());
+
+        return view('partials.users-tbody', compact('users'))->render();
+    }
+
+    public function lastUpdated()
+    {
+        $this->authorize('managementusermenu');
+
+        $lastUpdated = User::max('updated_at');
+
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
+
 
 
     public function activate($id)

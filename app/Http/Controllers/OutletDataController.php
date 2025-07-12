@@ -15,22 +15,65 @@ class OutletDataController extends Controller
     public function index(Request $request)
     {
         $this->authorize('outletlistmenu');
+
         $search = $request->input('search');
         $perPage = $request->input('per_page', 5);
 
-        $stores = Store::query()
+        $storesQuery = Store::query()
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('site_code', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%");
-            })
-            ->paginate($perPage)
-            ->appends([
-                'search' => $search,
-                'per_page' => $perPage,
-            ]);
+            });
+
+        if ($perPage === 'all') {
+            $stores = $storesQuery->orderByDesc('updated_at')->get();
+        } else {
+            $stores = $storesQuery->orderByDesc('updated_at')
+                ->paginate((int) $perPage)
+                ->appends([
+                    'search' => $search,
+                    'per_page' => $perPage,
+                ]);
+        }
 
         return view('outletList.index', compact('stores', 'search', 'perPage'));
+    }
+
+    public function tbody(Request $request)
+    {
+        $this->authorize('outletlistmenu');
+
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 5);
+
+        $storesQuery = Store::query()
+            ->when($search, function ($query, $search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('site_code', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
+            });
+
+        if ($perPage === 'all') {
+            $stores = $storesQuery->orderByDesc('updated_at')->get();
+        } else {
+            $stores = $storesQuery->orderByDesc('updated_at')
+                ->paginate((int) $perPage)
+                ->appends([
+                    'search' => $search,
+                    'per_page' => $perPage,
+                ]);
+        }
+
+        return view('partials.outlets-tbody', compact('stores'));
+    }
+
+    public function lastUpdated()
+    {
+        $this->authorize('outletlistmenu');
+
+        $lastUpdated = Store::max('updated_at');
+        return response()->json(['last_updated' => $lastUpdated]);
     }
 
     public function create()

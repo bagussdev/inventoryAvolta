@@ -22,8 +22,9 @@ class TransactionController extends Controller
         $this->authorize('historytransactionsmenu');
 
         $perPage = $request->input('per_page', 5);
+        $perPage = $perPage === 'all' ? 'all' : (int) $perPage;
+
         $search = $request->input('search');
-        // --- TAMBAHAN BARU: Ambil input filter tanggal ---
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
@@ -32,8 +33,64 @@ class TransactionController extends Controller
 
         $transactionsQuery = Transaction::with(['item', 'user']);
 
-        // 1. Filter Pencarian (sesuai kode Anda)
-        $transactionsQuery->when($search, function ($query) use ($search) {
+        // Search filter
+        if ($search) {
+            $transactionsQuery->where(function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('supplier', 'like', "%{$search}%")
+                    ->orWhere('id', 'like', "%{$search}%")
+                    ->orWhereHas('item', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // Department filter
+        if (!$isMaster) {
+            if ($user->department_id) {
+                $transactionsQuery->whereHas('item', function ($q) use ($user) {
+                    $q->where('department_id', $user->department_id);
+                });
+            } else {
+                $transactionsQuery->whereNull('id');
+            }
+        }
+
+        // Date range filter
+        if ($startDate && $endDate) {
+            $transactionsQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        // Pagination or all
+        if ($perPage === 'all') {
+            $transactions = $transactionsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $transactions = $transactionsQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
+        }
+
+        return view('transactions.index', compact('transactions', 'search', 'perPage', 'startDate', 'endDate'));
+    }
+
+    public function tbody(Request $request)
+    {
+        $perPage = $request->input('per_page', 5);
+        $perPage = $perPage === 'all' ? 'all' : (int) $perPage;
+
+        $search = $request->input('search');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Transaction::with(['item', 'user']);
+
+        if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('serial_number', 'like', "%{$search}%")
                     ->orWhere('supplier', 'like', "%{$search}%")
@@ -44,36 +101,53 @@ class TransactionController extends Controller
                             ->orWhere('model', 'like', "%{$search}%");
                     });
             });
-        });
+        }
 
-        // 2. Filter Department (sesuai kode Anda)
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        }
+
+        if ($perPage === 'all') {
+            $transactions = $query->orderBy('created_at', 'desc')->get();
+        } else {
+            $transactions = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        }
+
+        return view('partials.transactions-tbody', compact('transactions'));
+    }
+
+    public function lastUpdated(Request $request)
+    {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Transaction::query();
+
+        // Filter departemen jika bukan master
         if (!$isMaster) {
             if ($user->department_id) {
-                $transactionsQuery->whereHas('item', function ($q) use ($user) {
+                $query->whereHas('item', function ($q) use ($user) {
                     $q->where('department_id', $user->department_id);
                 });
             } else {
-                // Jika user tidak punya department, kembalikan query kosong
-                $transactionsQuery->whereNull('id');
+                $query->whereNull('id');
             }
         }
 
-        // --- TAMBAHAN BARU: Filter berdasarkan rentang tanggal ---
-        $transactionsQuery->when($startDate && $endDate, function ($query) use ($startDate, $endDate) {
-            // Menggunakan whereBetween untuk rentang tanggal
-            $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
-        });
+        $lastUpdated = $query->max('updated_at');
 
-        // 3. Paginate & render
-        $transactions = $transactionsQuery->latest()
-            ->paginate($perPage)
-            // --- PERUBAHAN DI SINI: appends() untuk mempertahankan semua filter ---
-            ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
-
-        // 4. Pass semua variabel ke view
-        // --- PERUBAHAN DI SINI: compact() untuk semua variabel filter ---
-        return view('transactions.index', compact('transactions', 'search', 'perPage', 'startDate', 'endDate'));
+        return response()->json([
+            'last_updated' => $lastUpdated
+        ]);
     }
+
+
     public function export(Request $request)
     {
         // Pastikan pengguna memiliki izin untuk melihat riwayat transaksi
@@ -313,6 +387,7 @@ class TransactionController extends Controller
     }
     public function show($id)
     {
+        $this->authorize('historytransactionsmenu');
         $transaction = Transaction::with('item')->findOrFail($id);
         return view('transactions.show', compact('transaction'));
     }
@@ -320,6 +395,14 @@ class TransactionController extends Controller
     {
         return response()->download(storage_path('app/public/templates/transactions_template.xlsx'));
     }
+    public function json()
+    {
+        $this->authorize('historytransactionsmenu');
+        return response()->json(Item::all());
+    }
+
+
+
     // public function importSave(Request $request)
     // {
     //     $request->validate([

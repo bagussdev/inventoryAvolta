@@ -65,18 +65,83 @@ class SparepartController extends Controller
         }
 
         // 6. Urutkan berdasarkan yang terbaru diupdate
-        $spareparts = $sparepartsQuery
-            ->orderBy('updated_at', 'desc')
-            ->paginate($perPage)
-            ->appends(compact('search', 'perPage'));
+        if ($perPage === 'all') {
+            $spareparts = $sparepartsQuery
+                ->orderBy('updated_at', 'desc')
+                ->get();
+        } else {
+            $spareparts = $sparepartsQuery
+                ->orderBy('updated_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage'));
+        }
+
 
         // 7. Kirim data ke view
         return view('spareparts.index', compact('spareparts', 'search', 'perPage'));
     }
+    public function tbody(Request $request)
+    {
+        $search = $request->search;
+        $perPage = $request->input('per_page', 5);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
 
-    /**
-     * Show the form for creating a new resource.
-     */
+        $sparepartsQuery = Sparepart::query()
+            ->with(['item.department', 'transaction', 'usedSpareparts'])
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('status', 'like', "%{$search}%")
+                        ->orWhere('qty', 'like', "%{$search}%")
+                        ->orWhereHas('transaction', fn($sub) => $sub->where('supplier', 'like', "%{$search}%"))
+                        ->orWhereHas('item', fn($sub) => $sub
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('model', 'like', "%{$search}%"));
+                });
+            });
+
+        if (!$isMaster && $user->department_id) {
+            $sparepartsQuery->whereHas('item', function ($query) use ($user) {
+                $query->where('department_id', $user->department_id);
+            });
+        } else if (!$isMaster) {
+            $sparepartsQuery->whereNull('id');
+        }
+
+        if ($perPage === 'all') {
+            $spareparts = $sparepartsQuery
+                ->orderBy('updated_at', 'desc')
+                ->get(); // Ambil semua tanpa pagination
+        } else {
+            $spareparts = $sparepartsQuery
+                ->orderBy('updated_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage'));
+        }
+
+
+        return view('partials.spareparts-tbody', compact('spareparts'))->render();
+    }
+
+    public function lastUpdated(Request $request)
+    {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $query = Sparepart::query();
+
+        if (!$isMaster && $user->department_id) {
+            $query->whereHas('item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
+        $lastUpdated = $query->max('updated_at');
+
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
+
     public function create()
     {
         //

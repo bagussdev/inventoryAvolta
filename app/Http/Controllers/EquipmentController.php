@@ -28,11 +28,10 @@ class EquipmentController extends Controller
 
         if (!$isMaster) {
             if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
-                // Filter berdasarkan store_location
                 if ($user->store_location) {
                     $equipmentsQuery->where('location', $user->store_location);
                 } else {
-                    $equipmentsQuery->whereRaw('1=0'); // Tidak boleh lihat apapun
+                    $equipmentsQuery->whereRaw('1=0');
                 }
             }
         }
@@ -51,16 +50,68 @@ class EquipmentController extends Controller
             });
         }
 
-        $equipments = $equipmentsQuery->orderBy('created_at', 'desc')
-            ->paginate($perPage)
-            ->appends([
-                'search' => $search,
-                'per_page' => $perPage,
-            ]);
+        if ($perPage === 'all') {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')
+                ->paginate((int)$perPage)
+                ->appends([
+                    'search' => $search,
+                    'per_page' => $perPage,
+                ]);
+        }
 
         return view('equipments.index', compact('equipments', 'search', 'perPage'));
     }
 
+    public function tbody(Request $request)
+    {
+        // $this->authorize('equipmentsmenu');
+
+        $perPage = $request->input('per_page', 5);
+        $search = $request->input('search');
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        $equipmentsQuery = Equipment::with(['item', 'store']);
+
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                if ($user->store_location) {
+                    $equipmentsQuery->where('location', $user->store_location);
+                } else {
+                    $equipmentsQuery->whereRaw('1=0');
+                }
+            }
+        }
+
+        if ($search) {
+            $equipmentsQuery->where(function ($q) use ($search) {
+                $q->whereHas('item', function ($q2) use ($search) {
+                    $q2->where('name', 'like', "%{$search}%");
+                })
+                    ->orWhereHas('store', function ($q3) use ($search) {
+                        $q3->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('transactions_id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
+            });
+        }
+
+        if ($perPage === 'all') {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->paginate((int)$perPage);
+        }
+
+        return view('partials.equipments-tbody', compact('equipments'));
+    }
+    public function lastUpdated()
+    {
+        $lastUpdated = Equipment::max('updated_at');
+        return response()->json(['last_updated' => $lastUpdated]);
+    }
 
     public function show($id)
     {

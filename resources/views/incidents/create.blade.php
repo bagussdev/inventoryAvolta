@@ -67,6 +67,12 @@
                             <select name="item_problem" id="item_problem" required
                                 class="w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></select>
                         </div>
+                        <div id="item_description_container" class="hidden">
+                            <label class="block font-medium mb-1 mt-2">Item Description</label>
+                            <input type="text" name="item_description" id="item_description"
+                                class="w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                placeholder="Describe the item here..." />
+                        </div>
                     </div>
 
                     {{-- RIGHT SIDE --}}
@@ -91,7 +97,7 @@
                     <label class="block font-medium mb-1">Note</label>
                     <textarea name="message_user" rows="4" required
                         class="w-full rounded-md border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-3 py-2 resize-y"
-                        placeholder="Tulis penjelasan masalah di sini..."></textarea>
+                        placeholder="Describe your problem here..."></textarea>
                 </div>
 
                 {{-- Submit --}}
@@ -105,6 +111,143 @@
 
         @push('scripts')
             <script>
+                let itemSelect;
+
+                async function toggleItems() {
+                    const storeId = document.getElementById('store_id')?.value;
+                    const departmentId = document.getElementById('department_to')?.value;
+                    const container = document.getElementById('item_problem_container');
+
+                    if (!storeId || !departmentId) {
+                        container.classList.add('hidden');
+                        return;
+                    }
+
+                    showFullScreenLoader();
+
+                    try {
+                        const response = await fetch(`/ajax/items-by-store/${storeId}/${departmentId}`);
+                        const items = await response.json();
+
+                        if (!Array.isArray(items)) throw new Error('Invalid response format');
+
+                        if (itemSelect) itemSelect.destroy();
+
+                        itemSelect = new TomSelect('#item_problem', {
+                            placeholder: 'Select item...',
+                            options: [{
+                                    value: 'others',
+                                    text: 'Other',
+                                    optgroup: 'Top'
+                                },
+                                ...items.map(item => ({
+                                    value: item.id,
+                                    text: `${item.name} (${item.model}) - ${item.brand}`,
+                                    optgroup: 'Items'
+                                }))
+                            ],
+                            optgroups: [{
+                                    value: 'Top',
+                                    label: ''
+                                }, // no label for top
+                                {
+                                    value: 'Items',
+                                    label: 'Item List'
+                                }
+                            ],
+                            render: {
+                                optgroup_header: function(data, escape) {
+                                    if (data.value === 'Top') return '';
+                                    return `<div class="text-xs text-gray-400 px-2 pt-1">${escape(data.label)}</div>`;
+                                }
+                            },
+                            dropdownParent: 'body',
+                            create: false
+                        });
+
+                        container.classList.remove('hidden');
+
+                        // Re-attach the change event to show/hide description input
+                        itemSelect.on('change', function(value) {
+                            const descContainer = document.getElementById('item_description_container');
+                            if (value === 'others') {
+                                descContainer.classList.remove('hidden');
+                            } else {
+                                descContainer.classList.add('hidden');
+                            }
+                        });
+
+                    } catch (err) {
+                        console.error('Error fetching items:', err);
+                        alert('Failed to load items.');
+                    } finally {
+                        hideFullScreenLoader();
+                    }
+                }
+
+                // Attachment preview handler
+                document.addEventListener("DOMContentLoaded", function() {
+                    const input = document.getElementById('attachmentPreviewInput');
+                    const imagePreview = document.getElementById('imagePreview');
+                    const videoPreview = document.getElementById('videoPreview');
+                    const container = document.getElementById('attachmentPreviewContainer');
+                    const wrapper = document.getElementById('viewerWrapper');
+
+                    let viewer;
+
+                    input.addEventListener('change', function(e) {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        const url = URL.createObjectURL(file);
+                        const fileType = file.type;
+
+                        container.classList.remove('hidden');
+                        imagePreview.classList.add('hidden');
+                        videoPreview.classList.add('hidden');
+
+                        if (fileType.startsWith('image/')) {
+                            imagePreview.src = url;
+                            imagePreview.classList.remove('hidden');
+                            if (viewer) viewer.destroy();
+                            viewer = new Viewer(wrapper, {
+                                toolbar: true,
+                                navbar: false,
+                                title: false
+                            });
+                        } else if (fileType.startsWith('video/')) {
+                            videoPreview.src = url;
+                            videoPreview.classList.remove('hidden');
+                            if (viewer) {
+                                viewer.destroy();
+                                viewer = null;
+                            }
+                        } else {
+                            alert("Unsupported file type");
+                        }
+                    });
+                });
+
+                // Incident status check
+                document.addEventListener("DOMContentLoaded", function() {
+                    document.addEventListener('change', async function(e) {
+                        if (e.target && e.target.id === 'item_problem' && e.target.value !== 'others') {
+                            const equipmentId = e.target.value;
+                            try {
+                                const response = await fetch(`/ajax/check-incident-status/${equipmentId}`);
+                                const data = await response.json();
+                                if (data.active) {
+                                    alert('Warning: This item is already reported and is still being handled.');
+                                }
+                            } catch (error) {
+                                console.error('Error checking incident status:', error);
+                            }
+                        }
+                    });
+                });
+            </script>
+            </style>
+            {{-- <script>
                 let itemSelect;
 
                 async function toggleItems() {
@@ -133,6 +276,10 @@
                                 value: item.id,
                                 text: `${item.name} (${item.model}) - ${item.brand}`
                             })),
+                            {
+                                value: 'others',
+                                text: 'Others (Specify)'
+                            }
                             create: false
                         });
 
@@ -189,6 +336,16 @@
                     });
                 });
 
+                document.getElementById('item_problem').addEventListener('change', function() {
+                    const descContainer = document.getElementById('item_description_container');
+                    if (this.value === 'others') {
+                        descContainer.classList.remove('hidden');
+                    } else {
+                        descContainer.classList.add('hidden');
+                    }
+                });
+
+
                 document.addEventListener("DOMContentLoaded", function() {
                     const itemSelect = document.getElementById('item_problem');
 
@@ -208,7 +365,7 @@
                         }
                     });
                 });
-            </script>
+            </script> --}}
         @endpush
     </x-dashboard.sidebar>
 </x-app-layout>

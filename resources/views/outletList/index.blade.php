@@ -29,12 +29,6 @@
 
         <hr class="h-[3px] my-8 bg-gray-200 border-0 dark:bg-gray-700 w-full">
         <x-table.outlet :stores="$stores" :perPage="$perPage" :search="$search" :showPagination="true" />
-        @push('scripts')
-            <script>
-                const outletList = new List('outlet-list', {
-                    valueNames: ['no', 'name', 'site_code', 'since', 'location', 'status']
-                });
-            </script>
-        @endpush
+
     </x-dashboard.sidebar>
 </x-app-layout>

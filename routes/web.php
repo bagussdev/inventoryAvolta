@@ -14,6 +14,7 @@ use App\Http\Controllers\SparepartController;
 use App\Http\Controllers\UsedSparepartController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Models\Incident;
 use App\Models\UsedSparepart;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // inventory Management
+    Route::get('/items/tbody', [ItemController::class, 'tbody'])->name('items.tbody');
+    Route::get('/items/last-updated', [ItemController::class, 'lastUpdated'])->name('items.lastUpdated');
     Route::resource('items', ItemController::class);
     Route::get('/items-deleted', [ItemController::class, 'ryclebin'])->name('items.deleted');
     Route::delete('/items/deleted/permanent-all', [ItemController::class, 'permanentDeleteAll'])->name('items.deleted.permanentAll');
@@ -44,24 +47,35 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/items/template/download', [ItemController::class, 'downloadTemplate'])->name('items.template.download');
 
     // transactions
+    Route::get('/transactions/last-updated', [TransactionController::class, 'lastUpdated'])->name('transactions.lastUpdated');
+    Route::get('/transactions/tbody', [TransactionController::class, 'tbody']);
     Route::resource('transactions', TransactionController::class);
     Route::post('/transactions/import/save', [TransactionController::class, 'importSave'])->name('transactions.import.save');
     Route::get('/transactions/template/download', [TransactionController::class, 'downloadTemplate'])->name('transactions.template.download');
     Route::get('/transactions-export', [TransactionController::class, 'export'])->name('transactions.export');
+    Route::get('/transactions/create/json', [TransactionController::class, 'json'])->name('transactions.json');
 
     // Equipments
+    Route::get('/equipments/last-updated', [EquipmentController::class, 'lastUpdated']);
+    Route::get('/equipments/tbody', [EquipmentController::class, 'tbody'])->name('equipments.tbody');
     Route::resource('equipments', EquipmentController::class)->only(['index', 'show']);
     Route::get('/equipments/{equipment}/migrate', [EquipmentController::class, 'showMigrateForm'])->name('equipments.migrate.form');
     Route::post('/equipments/{equipment}/migrate', [EquipmentController::class, 'storeMigrate'])->name('equipments.migrate');
 
     // Spareparts
+    Route::get('/spareparts/last-updated', [SparepartController::class, 'lastUpdated']);
+    Route::get('/spareparts/tbody', [SparepartController::class, 'tbody'])->name('spareparts.tbody');
     Route::resource('spareparts', SparepartController::class);
 
     // Sparepartused
+    Route::get('/sparepartused/last-updated', [UsedSparepartController::class, 'lastUpdated']);
+    Route::get('/sparepartused/tbody', [UsedSparepartController::class, 'tbody'])->name('sparepartused.tbody');
     Route::resource('sparepartused', UsedSparepartController::class);
     Route::get('/sparepartused-export', [UsedSparepartController::class, 'export'])->name('sparepartused.export');
 
     // Maintenance
+    Route::get('/maintenances/tbody', [MaintenanceController::class, 'tbody'])->name('maintenances.tbody');
+    Route::get('/maintenances/last-updated', [MaintenanceController::class, 'lastUpdated'])->name('maintenances.lastUpdated');
     Route::resource('maintenances', MaintenanceController::class);
     Route::get('/maintenances-completed', [MaintenanceController::class, 'completed'])->name('maintenances.completed');
     Route::get('maintenances/{id}/proses', [MaintenanceController::class, 'proses'])->name('maintenances.proses');
@@ -73,17 +87,22 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/spareparts/{id}/stock', [ApiSparepartController::class, 'getStock']);
     Route::get('/maintenances-export', [MaintenanceController::class, 'export'])->name('maintenances.export');
     Route::get('/maintenances-completedExport', [MaintenanceController::class, 'exportCompleted'])->name('maintenances.completed.export');
+
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // User Management
+    Route::get('/users/tbody', [UserDataController::class, 'tbody'])->name('users.tbody');
+    Route::get('/users/last-updated', [UserDataController::class, 'lastUpdated'])->name('users.lastUpdated');
     Route::resource('users', UserDataController::class);
     Route::get('/users/{id}/activate', [UserDataController::class, 'activate'])->name('users.active');
     Route::get('/users/{id}/deactivate', [UserDataController::class, 'deactivate'])->name('users.deactive');
 
     // Outlet Management
+    Route::get('/outlets/tbody', [OutletDataController::class, 'tbody'])->name('outlets.tbody');
+    Route::get('/outlets/last-updated', [OutletDataController::class, 'lastUpdated'])->name('outlets.lastUpdated');
     Route::resource('outlets', OutletDataController::class);
     Route::get('/outlets/{id}/active', [OutletDataController::class, 'active'])->name('outlets.active');
     Route::get('/outlets/{id}/deactive', [OutletDataController::class, 'deactive'])->name('outlets.deactive');
@@ -96,6 +115,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/permissions/{id}', [PermissionController::class, 'update'])->name('permissions.update');
 
     //Incident
+    Route::get('/incidents/tbody', [IncidentController::class, 'tbody'])->name('incidents.tbody');
+    Route::get('/incidents/last-updated', [IncidentController::class, 'lastUpdated'])->name('incidents.lastUpdated');
     route::resource('incidents', IncidentController::class);
     Route::get('/incidents-completed', [IncidentController::class, 'completed'])->name('incidents.completed');
     Route::put('/incidents/{id}/update-spareparts', [IncidentController::class, 'updateSpareparts'])->name('incidents.updateSpareparts');
@@ -114,6 +135,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ajax/check-incident-status/{equipmentId}', [IncidentController::class, 'checkIncidentStatus']);
 
     // request
+    Route::get('/requests/tbody', [RequestController::class, 'tbody'])->name('requests.tbody');
+    Route::get('/requests/last-updated', [RequestController::class, 'lastUpdated'])->name('requests.last-updated');
     route::resource('requests', RequestController::class);
     Route::get('/requests-completed', [RequestController::class, 'completed'])->name('requests.completed');
     Route::get('/requests-completed/{request}', [RequestController::class, 'show'])->name('requests.showCompletedDetail');
@@ -128,6 +151,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{id}/complete', [RequestController::class, 'complete'])->name('complete');
         Route::post('{id}/confirm', [RequestController::class, 'submitConfirm'])->name('submitConfirm');
     });
+
+    // Notification
+    Route::get('/notifications/last-updated', [NotificationController::class, 'lastUpdated'])->name('notifications.lastUpdated');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
 
 // Route::fallback(function () {
