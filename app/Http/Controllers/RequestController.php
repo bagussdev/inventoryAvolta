@@ -18,6 +18,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Models\NotificationPreference;
+use App\Services\NotificationService;
 
 
 class RequestController extends Controller
@@ -106,6 +108,23 @@ class RequestController extends Controller
 
         return view('partials.requests-tbody', compact('requests'));
     }
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
+    }
+
     public function lastUpdated()
     {
         $user = Auth::user();
@@ -279,7 +298,7 @@ class RequestController extends Controller
                 $attachmentPath = $request->file('attachment_user')->store('request_attachments', 'public');
             }
 
-            RequestModel::create([
+            $requestModel = RequestModel::create([
                 'unique_id'       => $newUniqueId,
                 'location'        => $validated['store_id'],
                 'department_to'   => $validated['department_to'],
@@ -290,6 +309,27 @@ class RequestController extends Controller
                 'pic_user'        => Auth::id(),
                 'status'          => 'waiting',
             ]);
+
+            $user = Auth::user();
+            $storeName = $requestModel->store?->name ?? '-';
+            $item = $requestModel->item_request;
+
+            $title = 'New Request Created';
+            $message = "New request <b>{$requestModel->unique_id}</b> has been submitted by <b>{$user->name}</b> for item <b>{$item}</b> at <b>{$storeName}</b>.";
+
+            $targets = $this->getNotificationTargets('create_request', $requestModel->department_to);
+            foreach ($targets as &$target) {
+                $target['store_id'] = $requestModel->store->id;
+            }
+            unset($target);
+            NotificationService::send(
+                $targets,
+                'create_request',
+                $title,
+                $message,
+                'requests',
+                $requestModel->id
+            );
 
             DB::commit();
 
@@ -317,6 +357,27 @@ class RequestController extends Controller
             'pic_staff' => Auth::id()
         ]);
 
+        $user = Auth::user();
+        $item = $request->item_request;
+        $location = $request->store?->name ?? '-';
+
+        $title = 'Request In Progress';
+        $message = "Request <b>{$request->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> is now being handled by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('start_request', $request->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $request->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'start_request',
+            $title,
+            $message,
+            'requests',
+            $request->id
+        );
+
         return redirect()->route('requests.index')->with('success', 'request marked as In Progress.');
     }
     public function restart($id)
@@ -327,6 +388,27 @@ class RequestController extends Controller
         $request->update([
             'status' => 'in progress',
         ]);
+
+        $user = Auth::user();
+        $item = $request->item_request;
+        $location = $request->store?->name ?? '-';
+
+        $title = 'Request Restarted';
+        $message = "Request <b>{$request->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been restarted by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('restart_request', $request->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $request->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'restart_request',
+            $title,
+            $message,
+            'requests',
+            $request->id
+        );
 
         return redirect()->route('requests.index')->with('success', 'request marked as In Progress.');
     }
@@ -367,6 +449,27 @@ class RequestController extends Controller
             'qty' => $validated['qty'],
             'message_user' => $validated['message_user'],
         ]);
+
+        $user = Auth::user();
+        $item = $requestModel->item_request;
+        $location = $requestModel->store?->name ?? '-';
+
+        $title = 'Request Updated';
+        $message = "Request <b>{$requestModel->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been updated by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('edit_request', $requestModel->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $requestModel->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'edit_request',
+            $title,
+            $message,
+            'requests',
+            $requestModel->id
+        );
 
         return redirect()->route('requests.index')->with('success', 'Request updated successfully.');
     }
@@ -523,6 +626,27 @@ class RequestController extends Controller
                 }
             }
 
+            $user = Auth::user();
+            $item = $requestModel->item_request;
+            $location = $requestModel->store?->name ?? '-';
+
+            $title = 'Request Spareparts Updated';
+            $message = "Spareparts for request <b>{$requestModel->unique_id}</b> (item <b>{$item}</b> at <b>{$location}</b>) have been updated by <b>{$user->name}</b>.";
+
+            $targets = $this->getNotificationTargets('update_sparepart_request', $requestModel->department_to);
+            foreach ($targets as &$target) {
+                $target['store_id'] = $requestModel->store->id;
+            }
+            unset($target);
+            NotificationService::send(
+                $targets,
+                'update_sparepart_request',
+                $title,
+                $message,
+                'requests',
+                $requestModel->id
+            );
+
             DB::commit();
             return back()->with('success', 'Spareparts updated successfully.');
         } catch (\Exception $e) {
@@ -546,6 +670,27 @@ class RequestController extends Controller
             'status' => 'pending',
             'message_staff' => $request->notes,
         ]);
+
+        $user = Auth::user();
+        $item = $requestModel->item_request;
+        $location = $requestModel->store?->name ?? '-';
+
+        $title = 'Request Marked as Pending';
+        $message = "Request <b>{$requestModel->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been marked as <b>Pending</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('pending_request', $requestModel->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $requestModel->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'pending_request',
+            $title,
+            $message,
+            'requests',
+            $requestModel->id
+        );
 
         return redirect()->route('requests.index')->with('success', 'Request marked as Pending.');
     }
@@ -658,6 +803,26 @@ class RequestController extends Controller
                 : ($sparepart->qty > 5 ? 'available' : 'low');
             $sparepart->save();
         }
+        $user = Auth::user();
+        $item = $requestModel->item_request;
+        $location = $requestModel->store?->name ?? '-';
+
+        $title = 'Request Resolved';
+        $message = "Request <b>{$requestModel->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been <b>completed</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('resolve_request', $requestModel->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $requestModel->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'resolve_request',
+            $title,
+            $message,
+            'requests',
+            $requestModel->id
+        );
 
         return redirect()->route('requests.index')->with('success', 'Request resolved and confirmed successfully.');
     }

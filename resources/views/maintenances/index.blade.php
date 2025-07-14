@@ -32,7 +32,8 @@
 
         <hr class="h-[3px] my-8 bg-gray-200 border-0 dark:bg-gray-700 w-full">
 
-        <x-table.maintenance :maintenances="$maintenances" :perPage="$perPage" :showPagination="true" />
+        <x-table.maintenance :maintenances="$maintenances" :perPage="$perPage" :showPagination="true" :enablePolling="true" />
+
 
     </x-dashboard.sidebar>
 </x-app-layout>

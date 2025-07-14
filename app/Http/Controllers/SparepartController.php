@@ -186,9 +186,10 @@ class SparepartController extends Controller
 
     //     return view('spareparts.show', compact('sparepart', 'transactions', 'stock'));
     // }
+
     public function show(Sparepart $sparepart)
     {
-        // Riwayat transaksi masuk (in)
+        // Ambil semua transaksi masuk dari tabel transactions
         $transactionIns = Transaction::where('items_id', $sparepart->items_id)
             ->select('qty', 'notes', 'created_at', 'id')
             ->get()
@@ -198,39 +199,58 @@ class SparepartController extends Controller
                     'type' => 'in',
                     'qty' => $trx->qty,
                     'note' => $trx->notes ?? '-',
-                    'reference' => 'Transaction #' . $trx->id,
+                    'reference' => 'TRX' . str_pad($trx->id, 4, '0', STR_PAD_LEFT),
                     'ref_type' => 'transaction',
                     'ref_id' => $trx->id,
                 ];
             });
 
-        // Riwayat pemakaian sparepart (out)
+        // Ambil transaksi keluar dari used_spareparts
         $usedOuts = UsedSparepart::whereHas('sparepart', function ($query) use ($sparepart) {
             $query->where('items_id', $sparepart->items_id);
-        })->get()
+        })
+            ->with(['maintenance', 'incident', 'request']) // eager load relasi
+            ->get()
             ->map(function ($used) {
-                $isMaintenance = !is_null($used->maintenance_id);
-                $refType = $isMaintenance ? 'maintenance' : 'incident';
-                $refId = $isMaintenance ? $used->maintenance_id : $used->incident_id;
+                // Tentukan tipe referensi
+                $refType = null;
+                $refId = null;
+                $reference = '-';
+
+                if ($used->maintenance_id) {
+                    $refType = 'maintenance';
+                    $refId = $used->maintenance_id;
+                    $reference = 'MNT' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                } elseif ($used->incident_id) {
+                    $refType = 'incident';
+                    $refId = $used->incident_id;
+                    $reference = $used->incident?->unique_id ?? 'INC-' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                } elseif ($used->request_id) {
+                    $refType = 'request';
+                    $refId = $used->request_id;
+                    $reference = $used->request?->unique_id ?? 'REQ-' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                }
 
                 return [
                     'date' => $used->created_at->format('Y-m-d'),
                     'type' => 'out',
                     'qty' => $used->qty,
                     'note' => $used->note ?? '-',
-                    'reference' => ucfirst($refType) . ' #' . $refId,
+                    'reference' => $reference,
                     'ref_type' => $refType,
                     'ref_id' => $refId,
                 ];
             });
 
-        // Gabungkan & urutkan berdasarkan tanggal
+        // Gabungkan dan urutkan berdasarkan tanggal terbaru
         $history = collect($transactionIns)
             ->merge($usedOuts)
             ->sortByDesc('date')
             ->values();
-
-        return view('spareparts.show', compact('sparepart', 'history'));
+        $totalIn = $history->where('type', 'in')->sum('qty');
+        $totalOut = $history->where('type', 'out')->sum('qty');
+        $totalStock = $totalIn - $totalOut;
+        return view('spareparts.show', compact('sparepart', 'history', 'totalIn', 'totalOut', 'totalStock'));
     }
 
 

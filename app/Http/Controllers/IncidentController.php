@@ -22,6 +22,8 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Models\NotificationPreference;
+use App\Services\NotificationService;
 
 class IncidentController extends Controller
 {
@@ -118,6 +120,23 @@ class IncidentController extends Controller
             ->appends($request->query());
 
         return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
+    }
+
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
     }
 
     public function tbody(Request $request)
@@ -542,7 +561,7 @@ class IncidentController extends Controller
             $attachmentPath = $request->file('attachment_user')->store('incident_attachments', 'public');
 
             // Simpan data incident
-            Incident::create([
+            $incident = Incident::create([
                 'unique_id'       => $newUniqueId,
                 'location'        => $validated['store_id'],
                 'department_to'   => $validated['department_to'],
@@ -553,6 +572,25 @@ class IncidentController extends Controller
                 'pic_user'        => $loggedInUser,
                 'status'          => 'waiting',
             ]);
+
+            $user = Auth::user();
+
+            $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+            $location = $incident->location ?? '-';
+
+            $title = 'New Incident Reported';
+            $message = "New incident <b>{$incident->unique_id}</b> has been reported by <b>{$user->name}</b> for item <b>{$item}</b> at <b>{$location}</b>.";
+
+            $targets = $this->getNotificationTargets('create_incident', $incident->department_to);
+
+            NotificationService::send(
+                $targets,
+                'create_incident',
+                $title,
+                $message,
+                'incidents',
+                $incident->id
+            );
 
             DB::commit();
 
@@ -614,6 +652,28 @@ class IncidentController extends Controller
             'pic_staff' => Auth::id()
         ]);
 
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident In Progress';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> is now being handled by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('start_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'start_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
+
+
         return redirect()->route('incidents.index')->with('success', 'Incident marked as In Progress.');
     }
     public function restart($id)
@@ -624,6 +684,27 @@ class IncidentController extends Controller
         $incident->update([
             'status' => 'in progress',
         ]);
+
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident Restarted';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been restarted by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('restart_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'restart_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
 
         return redirect()->route('incidents.index')->with('success', 'Incident marked as In Progress.');
     }
@@ -637,6 +718,27 @@ class IncidentController extends Controller
             'status' => 'pending',
             'message_staff' => $request->notes,
         ]);
+
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident Marked as Pending';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been marked as <b>Pending</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('pending_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store_id; // PENTING
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'pending_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
 
         return redirect()->route('incidents.index')->with('success', 'Incident marked as Pending.');
     }
@@ -762,6 +864,27 @@ class IncidentController extends Controller
             $sparepart->save();
         }
 
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident Resolved';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been <b>resolved</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('resolve_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'resolve_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
+
         return redirect()->route('incidents.index')->with('success', 'Incident resolved and confirmed successfully.');
     }
 
@@ -774,6 +897,27 @@ class IncidentController extends Controller
             'status' => 'completed',
             'confirmby' => Auth::id(),
         ]);
+
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident Completed';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been <b>closed</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('close_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'close_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
 
         return redirect()->route('incidents.index')->with('success', 'Incident marked as Completed.');
     }
@@ -933,6 +1077,27 @@ class IncidentController extends Controller
                 }
             }
 
+            $user = Auth::user();
+            $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+            $location = $incident->store?->name ?? '-';
+
+            $title = 'Incident Spareparts Updated';
+            $message = "Spareparts for incident <b>{$incident->unique_id}</b> (item <b>{$item}</b> at <b>{$location}</b>) have been updated by <b>{$user->name}</b>.";
+
+            $targets = $this->getNotificationTargets('update_sparepart_incident', $incident->department_to);
+            foreach ($targets as &$target) {
+                $target['store_id'] = $incident->store->id;
+            }
+            unset($target);
+            NotificationService::send(
+                $targets,
+                'update_sparepart_incident',
+                $title,
+                $message,
+                'incidents',
+                $incident->id
+            );
+
             DB::commit();
             return back()->with('success', 'Spareparts updated successfully.');
         } catch (\Exception $e) {
@@ -975,6 +1140,27 @@ class IncidentController extends Controller
 
         $incident->message_user = $validated['message_user'];
         $incident->save();
+
+        $user = Auth::user();
+        $item = $incident->item?->name ?? ($incident->item_description ?: '-');
+        $location = $incident->store?->name ?? '-';
+
+        $title = 'Incident Updated';
+        $message = "Incident <b>{$incident->unique_id}</b> for item <b>{$item}</b> at <b>{$location}</b> has been updated by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('edit_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id;
+        }
+        unset($target);
+        NotificationService::send(
+            $targets,
+            'edit_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
 
         return redirect()->route('incidents.index')->with('success', 'Incident updated successfully.');
     }

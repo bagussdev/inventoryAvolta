@@ -8,6 +8,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use App\Models\Department;
+use App\Models\Transaction;
+use App\Models\NotificationPreference;
 use App\Services\NotificationService;
 
 class ItemController extends Controller
@@ -108,13 +110,92 @@ class ItemController extends Controller
         $lastUpdated = Item::max('updated_at');
         return response()->json(['last_updated' => $lastUpdated]);
     }
-    public function show() {}
+    public function show($id)
+    {
+        $item = Item::with(['sparepart.usedSpareparts.maintenance', 'sparepart.usedSpareparts.incident', 'sparepart.usedSpareparts.request'])->findOrFail($id);
+
+        $history = collect();
+
+        // Transaksi masuk (in)
+        $transactions = Transaction::where('items_id', $item->id)->get();
+        foreach ($transactions as $trx) {
+            $history->push([
+                'date' => $trx->created_at->format('Y-m-d'),
+                'type' => 'in',
+                'qty' => $trx->qty,
+                'note' => $trx->notes ?? '-',
+                'reference' => 'TRX-' . str_pad($trx->id, 4, '0', STR_PAD_LEFT),
+                'ref_type' => 'transaction',
+                'ref_id' => $trx->id,
+            ]);
+        }
+
+        // Transaksi keluar (out) dari used_spareparts
+        foreach ($item->sparepart as $sparepart) {
+            foreach ($sparepart->usedSpareparts as $used) {
+                $refType = null;
+                $refId = null;
+                $reference = '-';
+
+                if ($used->maintenance_id) {
+                    $refType = 'maintenance';
+                    $refId = $used->maintenance_id;
+                    $reference = 'MNT-' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                } elseif ($used->incident_id) {
+                    $refType = 'incident';
+                    $refId = $used->incident_id;
+                    $reference = $used->incident?->unique_id ?? 'INC-' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                } elseif ($used->request_id) {
+                    $refType = 'request';
+                    $refId = $used->request_id;
+                    $reference = $used->request?->unique_id ?? 'REQ-' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                }
+
+                $history->push([
+                    'date' => $used->created_at->format('Y-m-d'),
+                    'type' => 'out',
+                    'qty' => $used->qty,
+                    'note' => $used->note ?? '-',
+                    'reference' => $reference,
+                    'ref_type' => $refType,
+                    'ref_id' => $refId,
+                ]);
+            }
+        }
+
+        // Urutkan dari tanggal terbaru
+        $history = $history->sortByDesc('date')->values();
+        // Hitung total masuk dan keluar
+        $totalIn = $history->where('type', 'in')->sum('qty');
+        $totalOut = $history->where('type', 'out')->sum('qty');
+        $totalStock = $totalIn - $totalOut;
+
+        return view('inventoryItems.show', compact('item', 'history', 'totalIn', 'totalOut', 'totalStock'));
+    }
     public function create()
     {
         $this->authorize('inventoryitems.create');
         $departments = Gate::allows('isMaster') ? Department::all() : collect();
         return view('inventoryitems.create', compact('departments'));
     }
+
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
+    }
+
 
     public function store(Request $request)
     {
@@ -169,17 +250,8 @@ class ItemController extends Controller
 
         $item = Item::create($validatedData);
 
-        $departmentId = $item->department_id;
-        $user = Auth::user(); // user yang melakukan aksi
+        $targets = $this->getNotificationTargets('create_item', $item->department_id);
 
-        // Siapkan target notifikasi
-        $targets = [
-            ['role_id' => 1], // Master
-            ['role_id' => 3, 'department_id' => $departmentId], // SPV department terkait
-            ['role_id' => 4, 'department_id' => $departmentId], // Staff department terkait
-        ];
-
-        // Kirim notifikasi
         NotificationService::send(
             $targets,
             'item',
@@ -209,14 +281,46 @@ class ItemController extends Controller
         ]);
 
         $item->update($request->all());
+
+        // --- Tambah Notifikasi ---
+        $user = Auth::user();
+        $targets = $this->getNotificationTargets('edit_item', $item->department_id);
+
+        NotificationService::send(
+            $targets,
+            'item',
+            'Item Updated',
+            'Item "' . $item->name . '" was updated by ' . $user->name . '.',
+            'items',
+            $item->id
+        );
+
+
         return redirect()->route('items.index')->with('success', 'Item berhasil diperbarui.');
     }
 
+
     public function destroy(Item $item)
     {
+        $user = Auth::user();
+        $departmentId = $item->department_id;
+
         $item->delete();
+
+        $targets = $this->getNotificationTargets('delete_item', $departmentId);
+
+        NotificationService::send(
+            $targets,
+            'item',
+            'Item Deleted',
+            'Item "' . $item->name . '" has been deleted by ' . $user->name . '.',
+            'items',
+            $item->id
+        );
+
         return redirect()->route('items.index')->with('success', 'Item berhasil dihapus.');
     }
+
     public function ryclebin(Request $request)
     {
         $this->authorize('inventoryitemsmenu');
@@ -241,6 +345,20 @@ class ItemController extends Controller
     {
         $item = Item::onlyTrashed()->findOrFail($id);
         $item->restore();
+
+        $user = Auth::user();
+
+        $targets = $this->getNotificationTargets('restore_item', $item->department_id);
+
+        NotificationService::send(
+            $targets,
+            'item',
+            'Item Restored',
+            'Item "' . $item->name . '" has been restored by ' . $user->name . '.',
+            'items',
+            $item->id
+        );
+
 
         return redirect()->route('items.deleted')->with('success', 'Item berhasil dikembalikan.');
     }
@@ -320,7 +438,7 @@ class ItemController extends Controller
             }
 
             // Simpan
-            Item::create([
+            $item = Item::create([
                 'name' => strtoupper($name),
                 'type' => $type,
                 'brand' => strtoupper($brand),
@@ -330,9 +448,20 @@ class ItemController extends Controller
             ]);
 
             $inserted++;
+
+            $targets = $this->getNotificationTargets('import_item', $item->department_id);
         }
 
+
         if ($inserted > 0 && count($errors) === 0) {
+            NotificationService::send(
+                $targets,
+                'item',
+                'Item Imported',
+                'Item "' . $item->name . '" has been imported by ' . $user->name . '.',
+                'items',
+                $item->id
+            );
             return redirect()->route('items.index')->with('success', "$inserted item berhasil diimport.");
         } elseif ($inserted > 0 && count($errors) > 0) {
             return redirect()->route('items.index')->with([

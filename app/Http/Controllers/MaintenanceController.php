@@ -15,6 +15,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MaintenancesExport;
 use App\Exports\MaintenancesCompletedExport;
+use App\Models\NotificationPreference;
+use App\Services\NotificationService;
 
 class MaintenanceController extends Controller
 {
@@ -343,7 +345,6 @@ class MaintenanceController extends Controller
         return Excel::download(new MaintenancesCompletedExport($filteredMaintenances), $filename);
     }
 
-
     public function show(Maintenance $maintenance)
     {
         $this->authorize('maintenancemenu');
@@ -372,6 +373,24 @@ class MaintenanceController extends Controller
         // 4. Pass the maintenance and spareparts variables to the view.
         return view('maintenances.show', compact('maintenance', 'spareparts'));
     }
+
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
+    }
+
     public function edit($id)
     {
         $this->authorize('schedulemaintenance.edit');
@@ -408,6 +427,25 @@ class MaintenanceController extends Controller
 
         $maintenance->save();
 
+        $equipment = $maintenance->equipment;
+        $item = $equipment?->item;
+        $departmentId = $item?->department_id;
+        $maintenanceCode = 'MNT-' . $maintenance->id;
+
+        $targets = $this->getNotificationTargets('edit_maintenance', $departmentId);
+
+        $title = 'Maintenance Edited';
+        $message = "Schedule Maintenance <b>{$maintenanceCode}</b> has been <span class='font-bold'>edited</span> by <b>" . Auth::user()->name . "</b>.";
+
+        NotificationService::send(
+            $targets,
+            'edit_maintenance',
+            $title,
+            $message,
+            'maintenances',
+            $maintenance->id
+        );
+
         return redirect()->route('maintenances.index')->with('success', 'Maintenance updated successfully.');
     }
     public function proses($id)
@@ -421,7 +459,27 @@ class MaintenanceController extends Controller
         }
         $maintenance->status = 'in progress';
         $maintenance->picstaff = Auth::id(); // pastikan login user adalah staff
+
         $maintenance->save();
+
+        $equipment = $maintenance->equipment;
+        $item = $equipment?->item;
+        $departmentId = $item?->department_id;
+        $maintenanceCode = 'MNT-' . $maintenance->id;
+
+        $targets = $this->getNotificationTargets('proses_maintenance', $departmentId);
+
+        $title = 'Maintenance In Progress';
+        $message = "Maintenance <b>{$maintenanceCode}</b> is now <span class='font-bold'>in progress</span> by <b>" . Auth::user()->name . "</b>.";
+
+        NotificationService::send(
+            $targets,
+            'proses_maintenance',
+            $title,
+            $message,
+            'maintenances',
+            $maintenance->id
+        );
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance is now in progress.');
     }
@@ -456,7 +514,6 @@ class MaintenanceController extends Controller
 
         return view('maintenances.confirm', compact('maintenance', 'spareparts'));
     }
-
 
     public function submitConfirm(Request $request, $id)
     {
@@ -510,6 +567,25 @@ class MaintenanceController extends Controller
                 $sparepart->qty -= $spare['qty'];
 
                 $sparepart->status = $sparepart->qty < 0 ? 'empty' : ($sparepart->qty > 5 ? 'low' : 'available');
+                $equipment = $maintenance->equipment;
+                $item = $equipment?->item;
+                $location = $equipment?->store?->name ?? '-';
+                $departmentId = $item?->department_id;
+                $maintenanceCode = 'MNT-' . $maintenance->id;
+
+                $targets = $this->getNotificationTargets('confirm_maintenance', $departmentId);
+
+                $title = 'Maintenance Confirmation';
+                $message = "Maintenance <b>{$maintenanceCode}</b> for <b>" . strtoupper($item->name) . "</b> at <b>" . $location . "</b> has already <span class='font-bold'>completed</span> by <b>" . Auth::user()->name . "</b>, Lets closed this maintenance.";
+
+                NotificationService::send(
+                    $targets,
+                    'confirm_maintenance',
+                    $title,
+                    $message,
+                    'maintenances',
+                    $maintenance->id
+                );
 
                 $sparepart->save();
             }
@@ -517,6 +593,7 @@ class MaintenanceController extends Controller
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance confirmed successfully.');
     }
+
     public function updateSpareparts(Request $request, $id)
     {
         $this->authorize('completedmaintenancemenu');
@@ -653,6 +730,24 @@ class MaintenanceController extends Controller
                     }
                 }
             }
+            $equipment = $maintenance->equipment;
+            $item = $equipment?->item;
+            $departmentId = $item?->department_id;
+            $maintenanceCode = 'MNT-' . $maintenance->id;
+
+            $targets = $this->getNotificationTargets('update_spareparts', $departmentId);
+
+            $title = 'Spareparts Updated';
+            $message = "Spareparts for <b>maintenance {$maintenanceCode}</b> have been <span class='font-bold'>edited</span> by <b>" . Auth::user()->name . "</b>.";
+
+            NotificationService::send(
+                $targets,
+                'update_spareparts',
+                $title,
+                $message,
+                'maintenances',
+                $maintenance->id
+            );
 
             DB::commit();
             return back()->with('success', 'Spareparts updated successfully.');
@@ -666,7 +761,6 @@ class MaintenanceController extends Controller
     {
         return $qty <= 0 ? 'empty' : ($qty < 5 ? 'low' : 'available');
     }
-
 
     public function closed($id)
     {
@@ -696,6 +790,25 @@ class MaintenanceController extends Controller
                 'status' => 'not due',
             ]);
         }
+
+        $equipment = $maintenance->equipment;
+        $item = $equipment?->item;
+        $departmentId = $item?->department_id;
+        $maintenanceCode = 'MNT-' . $maintenance->id;
+
+        $targets = $this->getNotificationTargets('closed_maintenance', $departmentId);
+
+        $title = 'Maintenance Closed';
+        $message = "Maintenance <b>{$maintenanceCode}</b> has been <span class='font-bold'>closed</span> by <b>" . Auth::user()->name . "</b>, and the next schedule has been created.";;
+
+        NotificationService::send(
+            $targets,
+            'closed_maintenance',
+            $title,
+            $message,
+            'maintenances',
+            $maintenance->id
+        );
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance closed successfully and new schedule created.');
     }

@@ -11,6 +11,8 @@ use \Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use App\Models\NotificationPreference;
+use App\Services\NotificationService;
 
 class EquipmentController extends Controller
 {
@@ -133,13 +135,27 @@ class EquipmentController extends Controller
         return view('equipments.show', compact('equipment'));
     }
 
-
-
     public function showMigrateForm(Equipment $equipment)
     {
         $this->authorize('equipments.migrate');
         $stores = Store::where('id', '!=', $equipment->store_id)->get();
         return view('equipments.migrate', compact('equipment', 'stores'));
+    }
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
     }
 
     public function storeMigrate(Request $request, Equipment $equipment)
@@ -224,6 +240,18 @@ class EquipmentController extends Controller
                 }
             }
         }
+
+        $user = Auth::user();
+        $targets = $this->getNotificationTargets('equipment_migrate', $equipment->department_id);
+
+        NotificationService::send(
+            $targets,
+            'equipment',
+            'Equipment Migrated',
+            'Equipment "' . $equipment->item->name . '" has been migrated by ' . $user->name . ' to ' . $newStore->name . '.',
+            'equipments',
+            $equipment->id
+        );
 
         return redirect()->route('equipments.index')->with('success', 'Equipment migrated successfully and status updated.');
     }

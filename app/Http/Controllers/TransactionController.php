@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
+use App\Models\NotificationPreference;
+use App\Services\NotificationService;
 
 class TransactionController extends Controller
 {
@@ -221,6 +223,78 @@ class TransactionController extends Controller
         return view('transactions.create', compact('items'));
     }
 
+    private function getNotificationTargets(string $type, int $departmentId = null): array
+    {
+        $preferences = NotificationPreference::where('type', $type)->pluck('role_id')->toArray();
+
+        $targets = [];
+
+        foreach ($preferences as $roleId) {
+            if (in_array($roleId, [1])) { // Master tanpa department
+                $targets[] = ['role_id' => $roleId];
+            } elseif ($departmentId) {
+                $targets[] = ['role_id' => $roleId, 'department_id' => $departmentId];
+            }
+        }
+
+        return $targets;
+    }
+    private function notifyByType(string $type, $itemId, $referenceType, $referenceId)
+    {
+        $item = Item::find($itemId);
+        if (!$item) return;
+
+        $targets = $this->getNotificationTargets($type, $item->department_id);
+        $user = Auth::user();
+
+        $itemLabel = "<b>" . strtoupper($item->name) . "</b> (" . strtoupper($item->brand) . " " . strtoupper($item->model) . ")";
+        $asType = $type === 'equipment_create' ? 'equipment' : 'sparepart';
+
+        $message = "$itemLabel has been added as <span class='font-bold'>$asType</span> by <b>{$user->name}</b>.";
+
+        foreach ($targets as $target) {
+            $target->notifications()->create([
+                'role_id' => $target->role_id,
+                'department_id' => $item->department_id,
+                'store_id' => null,
+                'triggered_by' => $user->id,
+                'type' => $type,
+                'title' => 'New Item Transaction',
+                'message' => $message,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'read' => false
+            ]);
+        }
+    }
+
+    private function notifyUpdate(string $type, $itemId, $referenceType, $referenceId)
+    {
+        $item = Item::find($itemId);
+        if (!$item) return;
+
+        $targets = $this->getNotificationTargets($type, $item->department_id);
+        $user = Auth::user();
+
+        $itemLabel = "<b>" . strtoupper($item->name) . "</b> (" . strtoupper($item->brand) . " " . strtoupper($item->model) . ")";
+        $message = "$itemLabel has been <span class='font-bold'>updated</span> by <b>{$user->name}</b>.";
+
+        foreach ($targets as $target) {
+            $target->notifications()->create([
+                'role_id' => $target->role_id,
+                'department_id' => $item->department_id,
+                'store_id' => null,
+                'triggered_by' => $user->id,
+                'type' => $type,
+                'title' => 'Item Updated',
+                'message' => $message,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'read' => false
+            ]);
+        }
+    }
+
 
     public function store(Request $request)
     {
@@ -276,6 +350,7 @@ class TransactionController extends Controller
                     'location' => $storageStore->id,
                     'status' => 'available'
                 ]);
+                $this->notifyByType('equipment_create', $transaction->items_id, 'Transaction', $transaction->id);
             } else {
                 $sparepart = Sparepart::firstOrNew([
                     'items_id' => $validated['items_id']
@@ -295,6 +370,7 @@ class TransactionController extends Controller
                 }
 
                 $sparepart->save();
+                $this->notifyByType('sparepart_create', $transaction->items_id, 'Transaction', $transaction->id);
             }
 
             return redirect()->route('transactions.index')->with('success', 'Transaction berhasil disimpan.');
@@ -379,6 +455,9 @@ class TransactionController extends Controller
                     ]);
                 }
             }
+
+            $type = $transaction->type === 'equipment' ? 'equipment_update' : 'sparepart_update';
+            $this->notifyUpdate($type, $transaction->items_id, 'Transaction', $transaction->id);
 
             return redirect()->route('transactions.index')->with('success', 'Transaksi dan data equipment berhasil diperbarui.');
         } catch (\Exception $e) {

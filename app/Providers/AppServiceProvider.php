@@ -39,8 +39,8 @@ class AppServiceProvider extends ServiceProvider
                             // Jika master, abaikan department
                         })
                         ->orWhere(function ($q) use ($user) {
-                            if ($user->store_id) {
-                                $q->where('store_id', $user->store_id);
+                            if ($user->store_location) {
+                                $q->where('store_id', $user->store_location);
                             }
                         });
                 })

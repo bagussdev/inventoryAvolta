@@ -6,54 +6,75 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+
 class NotificationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
-        $query = Notification::query()->latest();
+        $search = $request->input('search');
+        $perPage = $request->input('per_page', 10);
 
-        // Filtering berdasarkan role dan store
-        if ($user->role_id === 1) {
-            // Master – lihat semua
-        } elseif (in_array($user->role_id, [2, 3, 4])) {
-            // Manager/SPV/Staff – filter by department
-            $query->where('department_id', $user->department_id)
-                ->where(function ($q) use ($user) {
-                    $q->where('role_id', $user->role_id)
-                        ->orWhereNull('user_id'); // untuk notifikasi massal
-                });
-        } else {
-            // User biasa – filter berdasarkan store
-            $query->where('store_id', $user->store_id)
-                ->orWhere('user_id', $user->id);
+        $query = Notification::with(['triggeredBy', 'role', 'department', 'store']);
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('message', 'like', "%{$search}%")
+                    ->orWhere('type', 'like', "%{$search}%")
+                    ->orWhereHas('triggeredBy', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('role', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('department', fn($q) => $q->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('store', fn($q) => $q->where('name', 'like', "%{$search}%"));
+            });
         }
 
-        $notifications = $query->get();
+        $notifications = $perPage === 'all'
+            ? $query->latest()->get()
+            : $query->latest()->paginate($perPage)->appends($request->query());
 
-        return view('notifications.index', compact('notifications'));
+
+        return view('notification_preferences.list', compact('notifications', 'perPage'));
     }
+
 
     public function unreadCount()
     {
         $user = Auth::user();
 
-        $query = Notification::query()->whereNull('read_at');
+        $query = Notification::query()
+            ->whereNull('read_at')
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->where('role_id', $user->role_id);
 
-        if ($user->role_id === 1) {
-            // Master
-        } elseif (in_array($user->role_id, [2, 3, 4])) {
-            $query->where('department_id', $user->department_id)
-                ->where(function ($q) use ($user) {
-                    $q->where('role_id', $user->role_id)
-                        ->orWhereNull('user_id');
-                });
-        } else {
-            $query->where('store_id', $user->store_id)
-                ->orWhere('user_id', $user->id);
-        }
+                        if (in_array($user->role_id, [3, 4]) && $user->department_id) {
+                            $q2->where('department_id', $user->department_id);
+                        }
+
+                        if ($user->role_id === 5 && $user->store_id) {
+                            $q2->where('store_id', $user->store_id);
+                        }
+
+                        // Untuk master biarkan tanpa filter
+                    });
+            });
 
         return response()->json(['count' => $query->count()]);
+    }
+
+    public function html()
+    {
+        $user = Auth::user();
+
+        $unreadNotifications = Notification::where(function ($query) use ($user) {
+            $query->where('user_id', $user->id)
+                ->orWhere('role_id', $user->role_id)
+                ->orWhere('department_id', $user->department_id)
+                ->orWhere('store_id', $user->store_id);
+        })->whereNull('read_at')->latest()->take(10)->get();
+
+        return view('partials.notifications-list', compact('unreadNotifications'));
     }
 
     public function markAsRead()
@@ -71,7 +92,7 @@ class NotificationController extends Controller
                             })
                             ->when($user->role_id === 5, function ($q4) use ($user) {
                                 // User biasa berdasarkan store
-                                $q4->where('store_id', $user->store_id);
+                                $q4->where('store_id', $user->store_location);
                             });
                     });
             });
@@ -81,29 +102,28 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Notifications marked as read']);
     }
 
-
     public function lastUpdated()
     {
         $user = Auth::user();
 
-        $query = Notification::query()->whereNull('read_at');
+        $query = Notification::query()
+            ->whereNull('read_at')
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->where('role_id', $user->role_id);
 
-        if ($user) {
-            if ($user->role_id === 1) {
-                // Master lihat semua
-            } elseif (in_array($user->role_id, [2, 3, 4])) {
-                $query->where('department_id', $user->department_id)
-                    ->where(function ($q) use ($user) {
-                        $q->where('role_id', $user->role_id)
-                            ->orWhere('user_id', $user->id);
+                        if (in_array($user->role_id, [3, 4]) && $user->department_id) {
+                            $q2->where('department_id', $user->department_id);
+                        }
+
+                        if ($user->role_id === 5 && $user->store_id) {
+                            $q2->where('store_id', $user->store_id);
+                        }
+
+                        // Role 1 (master) tidak difilter
                     });
-            } else {
-                $query->where(function ($q) use ($user) {
-                    $q->where('store_id', $user->store_id)
-                        ->orWhere('user_id', $user->id);
-                });
-            }
-        }
+            });
 
         $lastUpdated = $query->max('updated_at');
 

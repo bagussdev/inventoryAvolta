@@ -16,6 +16,7 @@
                         <th class="px-4 py-2 md:px-6 md:py-3">Actions</th>
                     </tr>
                 </thead>
+                <x-table.loading-row colspan="8" />
                 @include('partials.maintenances-tbody', [
                     'maintenances' => $maintenances,
                     'perPage' => $perPage,
@@ -26,7 +27,7 @@
 </div>
 
 <p id="last-updated-display" class="text-xs text-gray-400 mt-2">
-    Last updated at: {{ $maintenances->max('updated_at') }}
+    Last updated at: {{ $maintenances->max('updated_at') ?? '-' }}
 </p>
 
 <x-per-page-selector :items="$maintenances" route="maintenances.index" :perPage="$perPage" :showPagination="true" />
@@ -48,13 +49,19 @@
             const startDate = '{{ request('start_date') }}';
             const endDate = '{{ request('end_date') }}';
             const tbody = document.querySelector('tbody.list');
+            const loadingRow = document.getElementById('loading-indicator');
 
+            // Show loading indicator
+            loadingRow?.classList.remove('hidden');
             fetch(`/maintenances/tbody?search=${search}&per_page=${perPage}&start_date=${startDate}&end_date=${endDate}`)
                 .then(res => res.text())
                 .then(html => {
                     if (tbody) {
                         tbody.innerHTML = html;
+                        tbody.insertAdjacentHTML('beforeend', `<x-table.loading-row colspan="8" />`);
                         maintenanceList.reIndex();
+                        loadingRow?.classList.add('hidden');
+
                     }
                 })
                 .catch(err => {
@@ -79,7 +86,6 @@
                 console.error('Error checking maintenance updates:', err);
             }
         }
-
-        setInterval(checkMaintenanceUpdate, 10000); // 10 detik polling
+        setInterval(checkMaintenanceUpdate, 4000); // 10 detik polling
     </script>
 @endpush

@@ -42,7 +42,7 @@
                             $equipment->transaction->id .
                             '</a>'
                         : '-',
-                    'Location' => $equipment->store->location ?? '-',
+                    'Location' => $equipment->store->name ?? '-',
                     'Status' =>
                         '<span class="inline-block px-2 py-1 text-xs sm:text-sm font-semibold rounded-md ' .
                         $statusColor .
@@ -66,8 +66,9 @@
                             <div class="w-40 font-medium">Photo</div>
                             <div class="flex-1" id="equipment-photo-viewer">
                                 @if ($equipment->transaction && $equipment->transaction->photoitems)
-                                    <img src="{{ asset('storage/' . $equipment->transaction->photoitems) }}" alt="Photo"
-                                        class="w-48 h-auto rounded-md shadow cursor-pointer" style="max-height: 200px;" />
+                                    <img src="{{ asset('storage/' . $equipment->transaction->photoitems) }}"
+                                        alt="Photo" class="w-48 h-auto rounded-md shadow cursor-pointer"
+                                        style="max-height: 200px;" />
                                 @else
                                     <span class="italic text-gray-400">No photo available</span>
                                 @endif

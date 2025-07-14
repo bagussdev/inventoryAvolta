@@ -125,6 +125,7 @@
                                                 'transaction' => route('transactions.show', $entry['ref_id']),
                                                 'maintenance' => route('maintenances.show', $entry['ref_id']),
                                                 'incident' => route('incidents.show', $entry['ref_id']),
+                                                'request' => route('requests.show', $entry['ref_id']),
                                                 default => '#',
                                             };
                                         @endphp
@@ -138,6 +139,25 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg mt-3 text-sm text-gray-700 dark:text-gray-300">
+                        <h4 class="font-semibold text-base mb-2 text-gray-800 dark:text-gray-100">Summary</h4>
+                        <div class="grid grid-cols-3 sm:grid-cols-3 gap-4">
+                            <div>
+                                <div class="text-gray-500 dark:text-gray-400">Total In</div>
+                                <div class="font-semibold text-green-600 dark:text-green-400">{{ $totalIn }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500 dark:text-gray-400">Total Out</div>
+                                <div class="font-semibold text-red-600 dark:text-red-400">{{ $totalOut }}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-500 dark:text-gray-400">Total Stock</div>
+                                <div class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $totalStock }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             @endif
         </div>

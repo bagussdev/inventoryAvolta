@@ -15,6 +15,7 @@ use App\Http\Controllers\UsedSparepartController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationPreferenceController;
 use App\Models\Incident;
 use App\Models\UsedSparepart;
 use Illuminate\Support\Facades\Route;
@@ -152,9 +153,14 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{id}/confirm', [RequestController::class, 'submitConfirm'])->name('submitConfirm');
     });
 
+    // Notification Permission
+    Route::get('/notification-preferences', [NotificationPreferenceController::class, 'index'])->name('notification-preferences.index');
+    Route::post('/notification-preferences/save', [NotificationPreferenceController::class, 'save'])->name('notification-preferences.save');
+
     // Notification
-    Route::get('/notifications/last-updated', [NotificationController::class, 'lastUpdated'])->name('notifications.lastUpdated');
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/html', [NotificationController::class, 'html'])->name('notifications.html');
+    Route::get('/notifications/last-updated', [NotificationController::class, 'lastUpdated'])->name('notifications.lastUpdated');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });

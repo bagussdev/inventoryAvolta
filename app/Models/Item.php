@@ -16,7 +16,7 @@ class Item extends Model
     }
     public function sparepart()
     {
-        return $this->hasOne(sparepart::class, 'items_id');
+        return $this->hasMany(Sparepart::class, 'items_id');
     }
     public function department()
     {

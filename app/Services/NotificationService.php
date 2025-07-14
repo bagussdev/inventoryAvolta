@@ -35,7 +35,7 @@ class NotificationService
                 'role_id'        => $target['role_id'] ?? null,
                 'department_id'  => $target['department_id'] ?? null,
                 'store_id'       => $target['store_id'] ?? null,
-                'triggered_by'   => Auth::id(), // siapa yg melakukan aksi
+                'triggered_by'   => Auth::id(),
                 'type'           => $type,
                 'title'          => $title,
                 'message'        => $message,

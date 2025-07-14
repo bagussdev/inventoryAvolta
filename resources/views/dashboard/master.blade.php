@@ -51,7 +51,13 @@
             <x-buttons.action-button text="More Maintenance" color="purple" class=""
                 href="{{ route('maintenances.index') }}" onclick="showFullScreenLoader()" />
         </div>
-        <x-table.maintenance :maintenances="$maintenances" :perPage="null" :showPagination="false" />
+        @if ($maintenances->count() > 0)
+            <x-table.maintenance :maintenances="$maintenances" :perPage="$perPage ?? null" :showPagination="false" />
+        @else
+            <div class="text-center text-sm text-gray-500 dark:text-gray-400 py-8">
+                Not found data with status maintenance.
+            </div>
+        @endif
 
         {{-- Latest Incident Table --}}
         <div class="flex justify-between mb-4 mt-6">
@@ -59,7 +65,14 @@
             <x-buttons.action-button text="More Incidents" color="purple" class=""
                 href="{{ route('incidents.index') }}" onclick="showFullScreenLoader()" />
         </div>
-        <x-table.incident :incidents="$incidents" :perPage="null" :showPagination="false" />
+        @if ($incidents->count() > 0)
+            <x-table.incident :incidents="$incidents" :perPage="null" :showPagination="false" />
+        @else
+            <div class="text-center text-sm text-gray-500 dark:text-gray-400 py-8">
+                Not found incidents data with status waiting.
+            </div>
+        @endif
+
 
     </x-dashboard.sidebar>
 </x-app-layout>

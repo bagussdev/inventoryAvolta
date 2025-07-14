@@ -40,7 +40,7 @@
                         </form>
                     @endcan
 
-                    <x-buttons.action-button text="Detail" color="purple" href="#"
+                    <x-buttons.action-button text="Detail" color="purple" href="{{ route('items.show', $item->id) }}"
                         onclick="showFullScreenLoader();" />
                 </div>
             </td>
