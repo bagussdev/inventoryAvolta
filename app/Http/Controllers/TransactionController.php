@@ -361,7 +361,7 @@ class TransactionController extends Controller
                 $sparepart->qty = ($sparepart->qty ?? 0) + $validated['qty'];
 
                 // Update status
-                if ($sparepart->qty == 0) {
+                if ($sparepart->qty === 0) {
                     $sparepart->status = 'empty';
                 } elseif ($sparepart->qty < 5) {
                     $sparepart->status = 'low';
@@ -467,9 +467,19 @@ class TransactionController extends Controller
     public function show($id)
     {
         $this->authorize('historytransactionsmenu');
+
         $transaction = Transaction::with('item')->findOrFail($id);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Cek hak akses departemen
+        if (!$isMaster && $transaction->item->department_id !== $user->department_id) {
+            abort(403, 'You do not have permission to view this transaction.');
+        }
+
         return view('transactions.show', compact('transaction'));
     }
+
     public function downloadTemplate()
     {
         return response()->download(storage_path('app/public/templates/transactions_template.xlsx'));

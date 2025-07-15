@@ -56,6 +56,14 @@
                             <x-buttons.action-button text="Edit" color="green"
                                 href="{{ route('incidents.edit', $incident->id) }}" onclick="showFullScreenLoader();" />
                         @endcan
+                    @elseif ($incident->status === 'resolved')
+                        @can('incident.closed')
+                            <form method="POST" action="{{ route('incidents.complete', $incident->id) }}"
+                                onsubmit="return confirmAndLoad('Mark this incident as completed?')">
+                                @csrf
+                                <x-buttons.action-button text="Closed" color="red" />
+                            </form>
+                        @endcan
                     @endif
 
                     {{-- ROLE: STAFF atau SPV --}}

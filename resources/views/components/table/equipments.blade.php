@@ -8,7 +8,7 @@
                     <tr>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="no">No</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="name">Name</th>
-                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="sn">Serial Number</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="sn">Alias</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="qty">Qty</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="location">Location</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
@@ -32,9 +32,10 @@
     Last updated at: {{ $equipments->max('updated_at') }}
 </p>
 
-{{-- Pagination --}}
-<x-per-page-selector :items="$equipments" route="equipments.index" :perPage="$perPage" :search="$search" :showPagination="true" />
-
+@if ($showPagination)
+    <x-per-page-selector :items="$equipments" route="equipments.index" :perPage="$perPage" :search="$search"
+        :showPagination="true" />
+@endif
 
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>

@@ -23,8 +23,9 @@
 <p id="last-updated-display" class="text-xs text-gray-400 mt-2">
     Last updated at: {{ $stores->max('updated_at') }}
 </p>
-<x-per-page-selector :items="$stores" route="outlets.index" :perPage="$perPage" :showPagination="true" />
-
+@if ($showPagination)
+    <x-per-page-selector :items="$stores" route="outlets.index" :perPage="$perPage" :showPagination="true" />
+@endif
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>

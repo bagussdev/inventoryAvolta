@@ -89,20 +89,16 @@ class IncidentController extends Controller
 
         if (!$isMaster) {
             if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
-                // Filter berdasarkan lokasi store user
                 if ($user->store_location) {
                     $incidentsQuery->where('location', $user->store_location);
                 } else {
-                    $incidentsQuery->whereRaw('1=0'); // Tidak ada lokasi
+                    abort(403, 'You are not authorized to access incidents without a store location.');
                 }
             } else {
-                // Filter berdasarkan departemen item
                 if ($user->department_id) {
-                    $incidentsQuery->whereHas('equipment.item', function ($q) use ($user) {
-                        $q->where('department_id', $user->department_id);
-                    });
+                    $incidentsQuery->where('department_to', $user->department_id);
                 } else {
-                    $incidentsQuery->whereRaw('1=0'); // Tidak ada department
+                    abort(403, 'You are not authorized to access incidents without a department.');
                 }
             }
         }
@@ -115,9 +111,10 @@ class IncidentController extends Controller
             ]);
         }
 
-        $incidents = $incidentsQuery->latest('created_at')
-            ->paginate($perPage)
-            ->appends($request->query());
+
+        $incidents = $perPage === 'all'
+            ? $incidentsQuery->latest('created_at')->get()
+            : $incidentsQuery->latest('created_at')->paginate((int) $perPage)->appends($request->query());
 
         return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
     }
@@ -192,15 +189,13 @@ class IncidentController extends Controller
                 if ($user->store_location) {
                     $query->where('location', $user->store_location);
                 } else {
-                    $query->whereRaw('1=0');
+                    abort(403, 'You are not authorized to access incidents without a store location.');
                 }
             } else {
                 if ($user->department_id) {
-                    $query->whereHas('equipment.item', function ($q) use ($user) {
-                        $q->where('department_id', $user->department_id);
-                    });
+                    $query->where('department_to', $user->department_id);
                 } else {
-                    $query->whereRaw('1=0');
+                    abort(403, 'You are not authorized to access incidents without a department.');
                 }
             }
         }
@@ -630,7 +625,7 @@ class IncidentController extends Controller
                     return [
                         'id' => $equipment->id, // <-- ini id dari equipment (bukan item)
                         'name' => $equipment->item->name ?? '-',
-                        'model' => $equipment->item->model ?? '-',
+                        'alias' => $equipment->alias ?? '-',
                         'brand' => $equipment->item->brand ?? '-',
                     ];
                 })
@@ -647,12 +642,23 @@ class IncidentController extends Controller
         $incident = Incident::findOrFail($id);
         $this->authorize('incident.proses', $incident);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if (strtolower($incident->status) !== 'waiting') {
+            abort(403, 'Only incidents with status "waiting" can be started.');
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You are not authorized to access incidents outside your department.');
+            }
+        }
         $incident->update([
             'status' => 'in progress',
             'pic_staff' => Auth::id()
         ]);
 
-        $user = Auth::user();
         $item = $incident->item?->name ?? ($incident->item_description ?: '-');
         $location = $incident->store?->name ?? '-';
 
@@ -680,6 +686,20 @@ class IncidentController extends Controller
     {
         $incident = Incident::findOrFail($id);
         $this->authorize('incident.proses', $incident);
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // ⛔ Hanya status 'pending' yang boleh di-restart
+        if (strtolower($incident->status) !== 'pending') {
+            abort(403, 'Only incidents with status "pending" can be restarted.');
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You can only restart incidents within your department.');
+            }
+        }
 
         $incident->update([
             'status' => 'in progress',
@@ -714,6 +734,20 @@ class IncidentController extends Controller
         $incident = Incident::findOrFail($id);
         $this->authorize('incident.pending', $incident);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // ⛔ Hanya status 'in progress' yang bisa di-pending
+        if (strtolower($incident->status) !== 'in progress') {
+            abort(403, 'Only incidents with status "in progress" can be marked as pending.');
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You can only mark incidents from your department as pending.');
+            }
+        }
+
         $incident->update([
             'status' => 'pending',
             'message_staff' => $request->notes,
@@ -728,7 +762,7 @@ class IncidentController extends Controller
 
         $targets = $this->getNotificationTargets('pending_incident', $incident->department_to);
         foreach ($targets as &$target) {
-            $target['store_id'] = $incident->store_id; // PENTING
+            $target['store_id'] = $incident->store->id; // PENTING
         }
         unset($target);
         NotificationService::send(
@@ -745,40 +779,45 @@ class IncidentController extends Controller
 
     public function resolve($id)
     {
-        // Authorize the action using a policy or gate
-        // Ensure you have an 'incident.resolve' gate or policy defined.
         $this->authorize('incident.resolve');
 
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
-        // Retrieve incident with complete relationships based on your Incident model
         $incident = Incident::with([
-            'equipment.item.department', // Access department via equipment -> item
-            'store',                      // Directly using 'store' relationship
-            'user',                       // The 'user' who reported the incident
-            'picUser',                    // The 'picUser' (PIC of the reporter)
-            'equipment.item',                       // The 'item' that has the problem
-            'department',                 // The 'department' the incident is assigned to
-            'confirm',                    // The 'confirm' user
-            'usedSpareParts.sparepart.item' // If incidents use spare parts
+            'equipment.item.department',
+            'store',
+            'user',
+            'picUser',
+            'equipment.item',
+            'department',
+            'confirm',
+            'usedSpareParts.sparepart.item'
         ])->findOrFail($id);
 
-        // Restrict access based on incident status
-        // Only allow confirmation if the incident status is 'in progress'.
-        if ($incident->status !== 'in progress') {
-            abort(404); // Or abort(403, 'Incident is not in a confirmable state.');
+        // ⛔ Hanya bisa jika status = in progress
+        if (strtolower($incident->status) !== 'in progress') {
+            abort(403, 'Only incidents with status "in progress" can be resolved.');
         }
 
-        // Retrieve spare parts from inventory.
-        // This section is included *only if* incidents can involve spare parts.
-        // If not, you can safely remove the following lines down to `$spareparts = ...`
+        // ⛔ User biasa (role_id 5) tidak boleh akses
+        if ($user->role_id === 5) {
+            abort(403, 'You are not authorized to resolve this incident.');
+        }
+
+        // 🔒 Role 2/3/4 harus cocok departemennya
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You can only resolve incidents from your own department.');
+            }
+        }
+
+        // ✅ Ambil spareparts yang masih tersedia dan sesuai departemen
         $sparepartsQuery = Sparepart::where('qty', '>', 0)->with('item');
 
-        // Filter available spare parts by department if the user is not a Master and has a department ID
         if (!$isMaster && $user->department_id) {
-            $sparepartsQuery->whereHas('item.department', function ($q) use ($user) {
-                $q->where('id', $user->department_id);
+            $sparepartsQuery->whereHas('item', function ($q) use ($user) {
+                $q->where('department_id', $user->department_id);
             });
         }
 
@@ -786,6 +825,7 @@ class IncidentController extends Controller
 
         return view('incidents.confirm', compact('incident', 'spareparts'));
     }
+
     public function submitConfirm(Request $request, $id)
     {
         $this->authorize('incident.resolve');
@@ -892,13 +932,24 @@ class IncidentController extends Controller
     {
         $incident = Incident::findOrFail($id);
         $this->authorize('incident.closed', $incident);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if (strtolower($incident->status) !== 'resolved') {
+            abort(403, 'Only incidents with status "resolved" can be completed.');
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You can only complete incidents from your own department.');
+            }
+        }
 
         $incident->update([
             'status' => 'completed',
             'confirmby' => Auth::id(),
         ]);
 
-        $user = Auth::user();
         $item = $incident->item?->name ?? ($incident->item_description ?: '-');
         $location = $incident->store?->name ?? '-';
 
@@ -921,25 +972,43 @@ class IncidentController extends Controller
 
         return redirect()->route('incidents.index')->with('success', 'Incident marked as Completed.');
     }
+
     public function show(Incident $incident)
     {
-        // Load relationships needed for the view, adjusted to your model's relations
+        $this->authorize('incidentmenu');
+
         $incident->load([
-            'equipment.store',       // equipment has a store
-            'equipment.item',        // equipment has an item
-            'user',                  // The reporter (from user_id)
-            'picUser',               // The PIC reporter (from pic_user)
-            'confirm',               // The confirmer (from confirm_by)
-            'store',                 // The store (from location)
-            'equipment.item',                  // The item problem (from item_problem)
-            'usedSpareParts.sparepart.item' // Load nested relationships for used spare parts
+            'equipment.store',
+            'equipment.item',
+            'user',
+            'picUser',
+            'confirm',
+            'store',
+            'usedSpareParts.sparepart.item'
         ]);
 
-        // Get all spare parts for the modal dropdown
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // ⛔ User biasa hanya boleh lihat incident sesuai lokasi
+        if ($user->role_id === 5) {
+            if ($user->store_location !== $incident->location) {
+                abort(403, 'You do not have permission to view this incident.');
+            }
+        }
+
+        // 🔒 Role 2/3/4 hanya boleh lihat incident dari departemen sendiri
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $incident->department_to) {
+                abort(403, 'You can only view incidents from your own department.');
+            }
+        }
+
         $spareparts = Sparepart::with('item')->get();
 
         return view('incidents.show', compact('incident', 'spareparts'));
     }
+
     public function updateSpareparts(Request $request, $id)
     {
         $this->authorize('incident.update');
@@ -1113,10 +1182,34 @@ class IncidentController extends Controller
     public function edit($id)
     {
         $incident = Incident::with(['store', 'department', 'equipment.item'])->findOrFail($id);
-        $this->authorize('incident.edit', $incident); // pastikan ada policy
+
+        if (strtolower($incident->status) !== 'waiting') {
+            abort(403, 'Only incidents with status "waiting" can be edited.');
+        }
+
+        $this->authorize('incident.edit', $incident); // Policy
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if ($user->role_id === 5) {
+            if ($user->store_location !== $incident->location) {
+                abort(403, 'You are not authorized to edit this incident.');
+            }
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            $isPicUser = $incident->pic_user === $user->id;
+
+            if (!$isPicUser && $user->department_id !== $incident->department_to) {
+                abort(403, 'You are only allowed to edit incidents from your department or if you are the PIC.');
+            }
+        }
+
 
         return view('incidents.edit', compact('incident'));
     }
+
 
     public function update(Request $request, $id)
     {

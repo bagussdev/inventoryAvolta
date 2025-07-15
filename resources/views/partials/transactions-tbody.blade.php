@@ -33,10 +33,11 @@
                 {{ strtolower($transaction->user->name) }}</td>
             <td class="px-2 py-2 md:px-4 md:py-3">
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
-                    <x-buttons.action-button text="Edit" color="blue"
-                        href="{{ route('transactions.edit', $transaction->id) }}" onclick="showFullScreenLoader();"
-                        class="" />
-
+                    @can('historytransactions.edit')
+                        <x-buttons.action-button text="Edit" color="blue"
+                            href="{{ route('transactions.edit', $transaction->id) }}" onclick="showFullScreenLoader();"
+                            class="" />
+                    @endcan
                     <x-buttons.action-button text="Detail" color="purple"
                         href="{{ route('transactions.show', $transaction->id) }}" onclick="showFullScreenLoader();"
                         class="" />

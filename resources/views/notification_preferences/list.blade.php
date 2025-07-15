@@ -39,8 +39,8 @@
                                 <th class="px-4 py-2 cursor-pointer sort" data-sort="department">Department</th>
                                 <th class="px-4 py-2 cursor-pointer sort" data-sort="store">Store</th>
                                 <th class="px-4 py-2 cursor-pointer sort" data-sort="type">Type</th>
-                                <th class="px-4 py-2 cursor-pointer sort" data-sort="title">Title</th>
                                 <th class="px-4 py-2 cursor-pointer sort" data-sort="message">Message</th>
+                                <th class="px-4 py-2 cursor-pointer sort" data-sort="reference">Reference</th>
                             </tr>
                         </thead>
                         <tbody
@@ -54,10 +54,36 @@
                                     <td class="px-4 py-2 role">{{ $notif->role->name ?? '-' }}</td>
                                     <td class="px-4 py-2 department">{{ $notif->department->name ?? '-' }}</td>
                                     <td class="px-4 py-2 store">{{ $notif->store->name ?? '-' }}</td>
-                                    <td class="px-4 py-2 type">{{ $notif->type }}</td>
-                                    <td class="px-4 py-2 title font-semibold text-purple-600 dark:text-purple-400">
+                                    <td
+                                        class="px-4 py-2 title font-semibold text-purple-600 dark:text-purple-400 text-left">
                                         {{ $notif->title }}</td>
-                                    <td class="px-4 py-2 message">{!! $notif->message !!}</td>
+                                    <td class="px-4 py-2 message text-left">{!! $notif->message !!}</td>
+                                    <td class="px-4 py-2 reference">
+                                        @php
+                                            $refType = ucfirst($notif->reference_type);
+                                            $refId = $notif->reference_id;
+
+                                            $refLink = match ($notif->reference_type) {
+                                                'incidents' => route('incidents.show', $refId),
+                                                'requests' => route('requests.show', $refId),
+                                                'maintenances' => route('maintenances.show', $refId),
+                                                'transactions' => route('transactions.show', $refId),
+                                                'items' => route('items.show', $refId),
+                                                'equipments' => route('equipments.show', $refId),
+                                                default => null,
+                                            };
+                                        @endphp
+
+                                        @if ($refLink)
+                                            <a href="{{ $refLink }}" target="_blank"
+                                                class="text-blue-600 underline text-xs">
+                                                {{ $refType }} #{{ $refId }}
+                                            </a>
+                                        @else
+                                            <span class="text-gray-400 text-xs">-</span>
+                                        @endif
+                                    </td>
+
                                 </tr>
                             @empty
                                 <tr>
@@ -76,7 +102,9 @@
         @push('scripts')
             <script>
                 const notifList = new List('notification-list', {
-                    valueNames: ['no', 'time', 'sender', 'role', 'department', 'store', 'type', 'title', 'message']
+                    valueNames: ['no', 'time', 'sender', 'reference', 'role', 'department', 'store', 'type', 'title',
+                        'message'
+                    ]
                 });
             </script>
         @endpush

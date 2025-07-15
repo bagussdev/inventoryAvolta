@@ -15,7 +15,7 @@
                 {{ ucfirst(strtolower($maintenance->equipment->item->name ?? '-')) }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 model">
-                {{ $maintenance->equipment->serial_number ?? '-' }}
+                {{ $maintenance->equipment->alias ?? '-' }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 store">
                 {{ $maintenance->equipment->store->name ?? '-' }}

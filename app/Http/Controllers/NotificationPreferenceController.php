@@ -13,7 +13,6 @@ class NotificationPreferenceController extends Controller
     protected $types = [
         'create_item' => 'Create Item',
         'edit_item' => 'Edit Item',
-        'delete_item' => 'Delete Item',
         'import_item' => 'Import Excel Item',
         'deleted_item' => 'Deleted Item',
         'restore_item' => 'Restore Deleted Item',

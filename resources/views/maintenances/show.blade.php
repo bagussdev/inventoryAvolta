@@ -221,14 +221,16 @@
                     </div>
 
                     {{-- Tombol Edit dan Add Spareparts --}}
-                    <div class="mt-4 text-left flex gap-2">
-                        @if (strtolower($maintenance->status) === 'completed')
-                            <button type="button" onclick="openSparepartModal()"
-                                class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
-                                ⚙️ Manage Spareparts
-                            </button>
-                        @endif
-                    </div>
+                    @can('maintenance.edit')
+                        <div class="mt-4 text-left flex gap-2">
+                            @if (in_array(strtolower($maintenance->status), ['resolved', 'completed']))
+                                <button type="button" onclick="openSparepartModal()"
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                                    ⚙️ Manage Spareparts
+                                </button>
+                            @endif
+                        </div>
+                    @endcan
                 </div>
             </div>
 

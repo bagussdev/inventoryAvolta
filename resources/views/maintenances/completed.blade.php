@@ -97,10 +97,7 @@
                                     </td>
                                     <td class="px-4 py-2 md:px-6 md:py-3">
                                         <div class="flex justify-center gap-2">
-                                            <a href="{{ route('maintenances.edit', $maintenance->id) }}"
-                                                onclick="showFullScreenLoader();"
-                                                class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">Edit</a>
-                                            <a href="{{ route('maintenances.show', $maintenance->id) }}"
+                                            <a href="{{ route('maintenances.showCompletedDetail', $maintenance->id) }}"
                                                 onclick="showFullScreenLoader();"
                                                 class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600">Detail</a>
                                         </div>

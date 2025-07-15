@@ -19,7 +19,7 @@
             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
             <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 name capitalize">{{ strtolower($equipment->item->name ?? '-') }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 sn capitalize">{{ $equipment->serial_number ?? '-' }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 sn capitalize">{{ $equipment->alias ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 qty">{{ $equipment->transaction->qty ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 location capitalize">{{ strtolower($equipment->store->name ?? '-') }}
             </td>

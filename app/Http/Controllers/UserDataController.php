@@ -75,8 +75,6 @@ class UserDataController extends Controller
         return response()->json(['last_updated' => $lastUpdated]);
     }
 
-
-
     public function activate($id)
     {
         $this->authorize('usercontrol');
@@ -115,8 +113,9 @@ class UserDataController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::defaults()],
-            'no_telfon' => 'nullable|string|max:20',
+            'no_telfon' => 'nullable|numeric|digits_between:1,12',
             'role_id' => 'required|exists:roles,id',
+
             'department_id' => $role->name === 'master' ? 'nullable' : 'required|exists:departments,id',
         ]);
         // Simpan user

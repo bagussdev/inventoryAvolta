@@ -25,10 +25,12 @@
                         Search
                     </button>
                 </form>
-                <a href="{{ route('incidents.create') }}" onclick="showFullScreenLoader();"
-                    class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-purple-600 hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 font-medium rounded-md focus:outline-none dark:bg-purple-500 dark:hover:bg-purple-600 dark:focus:ring-purple-700 text-center">
-                    Create New Incident
-                </a>
+                @can('incident.create')
+                    <a href="{{ route('incidents.create') }}" onclick="showFullScreenLoader();"
+                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-purple-600 hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 font-medium rounded-md focus:outline-none dark:bg-purple-500 dark:hover:bg-purple-600 dark:focus:ring-purple-700 text-center">
+                        Create New Incident
+                    </a>
+                @endcan
             </div>
         </div>
 

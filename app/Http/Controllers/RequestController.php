@@ -53,8 +53,22 @@ class RequestController extends Controller
             });
         }
 
-        if (!$isMaster && $user->store_location) {
-            $query->where('location', $user->store_location);
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                // User biasa hanya bisa lihat request dari lokasi store mereka
+                if ($user->store_location) {
+                    $query->where('location', $user->store_location);
+                } else {
+                    $query->whereRaw('1=0'); // Tidak bisa akses data apa pun
+                }
+            } else {
+                // Role 2,3,4 (manager, spv, staff) lihat berdasarkan departemen
+                if ($user->department_id) {
+                    $query->where('department_to', $user->department_id);
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            }
         }
 
         if ($startDate && $endDate) {
@@ -94,8 +108,22 @@ class RequestController extends Controller
             });
         }
 
-        if (!$isMaster && $user->store_location) {
-            $query->where('location', $user->store_location);
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                // User biasa hanya bisa lihat request dari lokasi store mereka
+                if ($user->store_location) {
+                    $query->where('location', $user->store_location);
+                } else {
+                    $query->whereRaw('1=0'); // Tidak bisa akses data apa pun
+                }
+            } else {
+                // Role 2,3,4 (manager, spv, staff) lihat berdasarkan departemen
+                if ($user->department_id) {
+                    $query->where('department_to', $user->department_id);
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            }
         }
 
         if ($startDate && $endDate) {
@@ -167,16 +195,33 @@ class RequestController extends Controller
             });
         }
 
-        if (!$isMaster && $user->store_location) {
-            $query->where('location', $user->store_location);
+        if (!$isMaster) {
+            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
+                // User biasa hanya bisa lihat request dari lokasi store mereka
+                if ($user->store_location) {
+                    $query->where('location', $user->store_location);
+                } else {
+                    $query->whereRaw('1=0'); // Tidak bisa akses data apa pun
+                }
+            } else {
+                // Role 2,3,4 (manager, spv, staff) lihat berdasarkan departemen
+                if ($user->department_id) {
+                    $query->where('department_to', $user->department_id);
+                } else {
+                    $query->whereRaw('1=0');
+                }
+            }
         }
 
         if ($startDate && $endDate) {
             $query->whereBetween('created_at', ["{$startDate} 00:00:00", "{$endDate} 23:59:59"]);
         }
 
-        $requests = $query->latest('created_at')->paginate($perPage)->appends($request->query());
-
+        if ($perPage === 'all') {
+            $requests = $query->orderByDesc('created_at')->get();
+        } else {
+            $requests = $query->orderByDesc('created_at')->paginate((int) $perPage)->appends($request->query());
+        }
         return view('requests.completed', compact('requests', 'perPage', 'search', 'startDate', 'endDate'));
     }
 
@@ -352,12 +397,24 @@ class RequestController extends Controller
         $request = RequestModel::findOrFail($id);
         $this->authorize('request.proses', $request);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if ($request->status !== 'waiting') {
+            abort(403, 'Request is not in a startable state.');
+        }
+
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $request->department_to) {
+                abort(403, 'You can only start requests assigned to your department.');
+            }
+        }
+
         $request->update([
             'status' => 'in progress',
             'pic_staff' => Auth::id()
         ]);
 
-        $user = Auth::user();
         $item = $request->item_request;
         $location = $request->store?->name ?? '-';
 
@@ -385,11 +442,25 @@ class RequestController extends Controller
         $request = RequestModel::findOrFail($id);
         $this->authorize('request.proses', $request);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Validasi: hanya bisa restart jika status saat ini 'pending'
+        if ($request->status !== 'pending') {
+            abort(403, 'Only requests with pending status can be restarted.');
+        }
+
+        // Validasi: selain master, hanya boleh restart jika cocok departemen
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $request->department_to) {
+                abort(403, 'You can only restart requests assigned to your department.');
+            }
+        }
+
         $request->update([
             'status' => 'in progress',
         ]);
 
-        $user = Auth::user();
         $item = $request->item_request;
         $location = $request->store?->name ?? '-';
 
@@ -416,10 +487,31 @@ class RequestController extends Controller
     public function edit($id)
     {
         $this->authorize('request.edit');
+
         $request = RequestModel::with(['store', 'department'])->findOrFail($id);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Hanya bisa diedit jika status masih 'waiting'
+        if ($request->status !== 'waiting') {
+            abort(403, 'Only requests with waiting status can be edited.');
+        }
+
+        // Filter berdasarkan role dan department
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $request->department_to) {
+                abort(403, 'You are only allowed to edit requests from your department.');
+            }
+        }
+
+        // User biasa (role_id = 5) hanya bisa edit milik sendiri
+        if ($user->role_id === 5 && $user->id !== $request->pic_user) {
+            abort(403, 'You are only allowed to edit your own request.');
+        }
 
         return view('requests.edit', compact('request'));
     }
+
 
     public function update(Request $request, $id)
     {
@@ -475,16 +567,31 @@ class RequestController extends Controller
     }
     public function show(RequestModel $request)
     {
-        // Load relationships needed for the view, adjusted to your model's relations
         $request->load([
-            'user',                  // The reporter (from user_id)
-            'picUser',               // The PIC reporter (from pic_user)
+            'user',                  // Reporter (user_id)
+            'picUser',               // PIC Reporter (pic_user)
             'department',
-            'store',                 // The store (from location)
-            'usedSpareParts.sparepart.item' // Load nested relationships for used spare parts
+            'store',                 // Store (location)
+            'usedSpareParts.sparepart.item'
         ]);
 
-        // Get all spare parts for the modal dropdown
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Role 2, 3, 4 (Manager, SPV, Staff)
+        if (!$isMaster && in_array($user->role_id, [2, 3, 4])) {
+            if ($user->department_id !== $request->department_to) {
+                abort(403, 'You are only allowed to view requests from your department.');
+            }
+        }
+
+        // Role 5 (User biasa) hanya bisa lihat milik sendiri
+        if ($user->role_id === 5) {
+            if ($user->store_location !== $request->location) {
+                abort(403, 'You do not have permission to view this incident.');
+            }
+        }
+
         $spareparts = Sparepart::with('item')->get();
 
         return view('requests.show', compact('request', 'spareparts'));
@@ -665,13 +772,30 @@ class RequestController extends Controller
         $this->authorize('request.pending');
 
         $requestModel = RequestModel::findOrFail($id);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if ($requestModel->status !== 'in progress') {
+            abort(403, 'Only requests with status "in progress" can be marked as pending.');
+        }
+
+        if (!$isMaster) {
+            if ($user->role_id === 5) {
+                abort(403, 'You are not allowed to mark this request as pending.');
+            } elseif (in_array($user->role_id, [2, 3, 4])) {
+                if ($user->department_id !== $requestModel->department_to) {
+                    abort(403, 'You are only allowed to mark requests from your department.');
+                }
+            } else {
+                abort(403, 'Unauthorized access.');
+            }
+        }
 
         $requestModel->update([
             'status' => 'pending',
             'message_staff' => $request->notes,
         ]);
 
-        $user = Auth::user();
         $item = $requestModel->item_request;
         $location = $requestModel->store?->name ?? '-';
 
@@ -730,6 +854,8 @@ class RequestController extends Controller
     public function submitConfirm(Request $request, $id)
     {
         $this->authorize('request.proses');
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
 
         $request->validate([
             'notes' => 'nullable|string',
@@ -741,6 +867,23 @@ class RequestController extends Controller
         ]);
 
         $requestModel = RequestModel::findOrFail($id);
+
+        if ($request->status !== 'in progress') {
+            abort(404, 'Request is not in progress.');
+        }
+
+        // Role-based access control
+        if (!$isMaster) {
+            if ($user->role_id === 5) {
+                abort(403, 'You are not authorized to resolve this request.');
+            } elseif (in_array($user->role_id, [2, 3, 4])) {
+                if ($user->department_id !== $request->department_to) {
+                    abort(403, 'You are only allowed to resolve requests from your department.');
+                }
+            } else {
+                abort(403, 'Unauthorized access.');
+            }
+        }
 
         // Gabungkan spareparts dengan ID yang sama
         $groupedSpareparts = [];
@@ -803,7 +946,6 @@ class RequestController extends Controller
                 : ($sparepart->qty > 5 ? 'available' : 'low');
             $sparepart->save();
         }
-        $user = Auth::user();
         $item = $requestModel->item_request;
         $location = $requestModel->store?->name ?? '-';
 

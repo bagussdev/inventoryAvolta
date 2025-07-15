@@ -142,7 +142,7 @@
                                 },
                                 ...items.map(item => ({
                                     value: item.id,
-                                    text: `${item.name} (${item.model}) - ${item.brand}`,
+                                    text: `${item.name} - ${item.alias}`,
                                     optgroup: 'Items'
                                 }))
                             ],
@@ -246,126 +246,6 @@
                     });
                 });
             </script>
-            </style>
-            {{-- <script>
-                let itemSelect;
-
-                async function toggleItems() {
-                    const storeId = document.getElementById('store_id').value;
-                    const departmentId = document.getElementById('department_to').value;
-                    const container = document.getElementById('item_problem_container');
-
-                    if (!storeId || !departmentId) {
-                        container.classList.add('hidden');
-                        return;
-                    }
-
-                    showFullScreenLoader();
-
-                    try {
-                        const response = await fetch(`/ajax/items-by-store/${storeId}/${departmentId}`);
-                        const items = await response.json();
-
-                        if (!Array.isArray(items)) throw new Error('Invalid response format');
-
-                        if (itemSelect) itemSelect.destroy();
-
-                        itemSelect = new TomSelect('#item_problem', {
-                            placeholder: 'Select item...',
-                            options: items.map(item => ({
-                                value: item.id,
-                                text: `${item.name} (${item.model}) - ${item.brand}`
-                            })),
-                            {
-                                value: 'others',
-                                text: 'Others (Specify)'
-                            }
-                            create: false
-                        });
-
-                        container.classList.remove('hidden');
-                    } catch (err) {
-                        console.error('Error fetching items:', err);
-                        alert('Failed to load items.');
-                    } finally {
-                        hideFullScreenLoader();
-                    }
-                }
-
-                document.addEventListener("DOMContentLoaded", function() {
-                    const input = document.getElementById('attachmentPreviewInput');
-                    const imagePreview = document.getElementById('imagePreview');
-                    const videoPreview = document.getElementById('videoPreview');
-                    const container = document.getElementById('attachmentPreviewContainer');
-                    const wrapper = document.getElementById('viewerWrapper');
-
-                    let viewer;
-
-                    input.addEventListener('change', function(e) {
-                        const file = e.target.files[0];
-                        if (!file) return;
-
-                        const url = URL.createObjectURL(file);
-                        const fileType = file.type;
-
-                        container.classList.remove('hidden');
-                        imagePreview.classList.add('hidden');
-                        videoPreview.classList.add('hidden');
-
-                        if (fileType.startsWith('image/')) {
-                            imagePreview.src = url;
-                            imagePreview.classList.remove('hidden');
-
-                            if (viewer) viewer.destroy(); // destroy old if any
-                            viewer = new Viewer(wrapper, {
-                                toolbar: true,
-                                navbar: false,
-                                title: false,
-                            });
-                        } else if (fileType.startsWith('video/')) {
-                            videoPreview.src = url;
-                            videoPreview.classList.remove('hidden');
-
-                            if (viewer) {
-                                viewer.destroy();
-                                viewer = null;
-                            }
-                        } else {
-                            alert("Unsupported file type");
-                        }
-                    });
-                });
-
-                document.getElementById('item_problem').addEventListener('change', function() {
-                    const descContainer = document.getElementById('item_description_container');
-                    if (this.value === 'others') {
-                        descContainer.classList.remove('hidden');
-                    } else {
-                        descContainer.classList.add('hidden');
-                    }
-                });
-
-
-                document.addEventListener("DOMContentLoaded", function() {
-                    const itemSelect = document.getElementById('item_problem');
-
-                    itemSelect.addEventListener('change', async function() {
-                        const equipmentId = this.value;
-                        if (!equipmentId) return;
-
-                        try {
-                            const response = await fetch(`/ajax/check-incident-status/${equipmentId}`);
-                            const data = await response.json();
-
-                            if (data.active) {
-                                alert('Warning: This item is already reported and is still being handled.');
-                            }
-                        } catch (error) {
-                            console.error('Error checking incident status:', error);
-                        }
-                    });
-                });
-            </script> --}}
         @endpush
     </x-dashboard.sidebar>
 </x-app-layout>

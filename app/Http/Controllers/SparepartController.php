@@ -51,16 +51,16 @@ class SparepartController extends Controller
 
         // 5. Terapkan filter departemen jika user BUKAN Master
         if (!$isMaster) {
-            // Pastikan user punya department_id untuk difilter
-            if ($user->department_id) {
-                // Filter spareparts berdasarkan departemen dari item-nya
-                $sparepartsQuery->whereHas('item', function ($query) use ($user) {
-                    $query->where('department_id', $user->department_id);
-                });
-            } else {
-                // Jika user tidak punya departemen, tampilkan data kosong
-                // Ini akan mengembalikan query yang tidak memiliki hasil
-                $sparepartsQuery->whereNull('id');
+            if ($user->role_id === 5) {
+                abort(403, 'You do not have permission to view spareparts data.');
+            } elseif (in_array($user->role_id, [2, 3, 4])) {
+                if ($user->department_id) {
+                    $sparepartsQuery->whereHas('item', function ($query) use ($user) {
+                        $query->where('department_id', $user->department_id);
+                    });
+                } else {
+                    abort(403, 'Your department is not registered.');
+                }
             }
         }
 
@@ -101,12 +101,18 @@ class SparepartController extends Controller
                 });
             });
 
-        if (!$isMaster && $user->department_id) {
-            $sparepartsQuery->whereHas('item', function ($query) use ($user) {
-                $query->where('department_id', $user->department_id);
-            });
-        } else if (!$isMaster) {
-            $sparepartsQuery->whereNull('id');
+        if (!$isMaster) {
+            if ($user->role_id === 5) {
+                abort(403, 'You do not have permission to view spareparts data.');
+            } elseif (in_array($user->role_id, [2, 3, 4])) {
+                if ($user->department_id) {
+                    $sparepartsQuery->whereHas('item', function ($query) use ($user) {
+                        $query->where('department_id', $user->department_id);
+                    });
+                } else {
+                    abort(403, 'Your department is not registered.');
+                }
+            }
         }
 
         if ($perPage === 'all') {
@@ -189,6 +195,21 @@ class SparepartController extends Controller
 
     public function show(Sparepart $sparepart)
     {
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        // Cek otorisasi akses
+        if (!$isMaster) {
+            if ($user->role_id === 5) {
+                abort(403, 'Unauthorized: User is not allowed to access sparepart detail.');
+            }
+
+            if (in_array($user->role_id, [2, 3, 4])) {
+                if (!$sparepart->item || $sparepart->item->department_id !== $user->department_id) {
+                    abort(403, 'Unauthorized: This sparepart is not under your department.');
+                }
+            }
+        }
         // Ambil semua transaksi masuk dari tabel transactions
         $transactionIns = Transaction::where('items_id', $sparepart->items_id)
             ->select('qty', 'notes', 'created_at', 'id')
@@ -251,31 +272,5 @@ class SparepartController extends Controller
         $totalOut = $history->where('type', 'out')->sum('qty');
         $totalStock = $totalIn - $totalOut;
         return view('spareparts.show', compact('sparepart', 'history', 'totalIn', 'totalOut', 'totalStock'));
-    }
-
-
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
     }
 }

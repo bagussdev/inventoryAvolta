@@ -91,8 +91,10 @@ class NotificationController extends Controller
                                 $q3->where('department_id', $user->department_id);
                             })
                             ->when($user->role_id === 5, function ($q4) use ($user) {
-                                // User biasa berdasarkan store
-                                $q4->where('store_id', $user->store_location);
+                                $q4->where(function ($query) use ($user) {
+                                    $query->where('store_id', $user->store_location)
+                                        ->where('role_id', 5);
+                                });
                             });
                     });
             });

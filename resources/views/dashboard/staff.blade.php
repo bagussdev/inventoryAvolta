@@ -11,7 +11,9 @@
                 href="{{ route('requests.index') }}" />
             <x-dashboard.stat-card title="Total Incident" :value="$totalIncidents" :icon="view('components.icons.incident-icon')"
                 href="{{ route('incidents.index') }}" />
-            <x-dashboard.stat-card title="Equipment" :value="$totalEquipments" :icon="view('components.icons.equipment-icon')"
+            <x-dashboard.stat-card title="Tota Equipment" :value="$totalEquipments" :icon="view('components.icons.inventory-icon')"
+                href="{{ route('equipments.index') }}" />
+            <x-dashboard.stat-card title="Total Maintenance" :value="$totalMaintenances" :icon="view('components.icons.maintenance-icon')"
                 href="{{ route('equipments.index') }}" />
         </div>
 
@@ -36,10 +38,10 @@
         {{-- data Requests --}}
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
 
-            @if ($requestsModel->isEmpty())
+            @if ($requests->isEmpty())
                 <p class="text-gray-500 italic">No data requests.</p>
             @else
-                <x-table.request :requests="$requestsModel" :perPage="null" :showPagination="false" />
+                <x-table.request :requests="$requests" :perPage="null" :showPagination="false" />
             @endif
         </div>
 

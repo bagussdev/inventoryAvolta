@@ -29,47 +29,55 @@ class EquipmentController extends Controller
         $equipmentsQuery = Equipment::with(['item', 'store']);
 
         if (!$isMaster) {
-            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
-                if ($user->store_location) {
-                    $equipmentsQuery->where('location', $user->store_location);
-                } else {
+            switch ($user->role_id) {
+                case 5: // User
+                    if ($user->store_location) {
+                        $equipmentsQuery->where('location', $user->store_location);
+                    } else {
+                        $equipmentsQuery->whereRaw('1=0');
+                    }
+                    break;
+
+                case 2: // Manager
+                case 3: // SPV
+                case 4: // Staff
+                    if ($user->department_id) {
+                        $equipmentsQuery->whereHas('item', function ($q) use ($user) {
+                            $q->where('department_id', $user->department_id);
+                        });
+                    } else {
+                        $equipmentsQuery->whereRaw('1=0');
+                    }
+                    break;
+
+                default:
                     $equipmentsQuery->whereRaw('1=0');
-                }
+                    break;
             }
         }
 
         if ($search) {
             $equipmentsQuery->where(function ($q) use ($search) {
-                $q->whereHas('item', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                })
-                    ->orWhereHas('store', function ($q3) use ($search) {
-                        $q3->where('name', 'like', "%{$search}%");
-                    })
+                $q->whereHas('item', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('store', fn($q3) => $q3->where('name', 'like', "%{$search}%"))
                     ->orWhere('serial_number', 'like', "%{$search}%")
                     ->orWhere('transactions_id', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%");
             });
         }
 
-        if ($perPage === 'all') {
-            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
-        } else {
-            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')
-                ->paginate((int)$perPage)
-                ->appends([
-                    'search' => $search,
-                    'per_page' => $perPage,
-                ]);
-        }
+        $equipments = $perPage === 'all'
+            ? $equipmentsQuery->orderBy('created_at', 'desc')->get()
+            : $equipmentsQuery->orderBy('created_at', 'desc')
+            ->paginate((int) $perPage)
+            ->appends(['search' => $search, 'per_page' => $perPage]);
 
         return view('equipments.index', compact('equipments', 'search', 'perPage'));
     }
 
+
     public function tbody(Request $request)
     {
-        // $this->authorize('equipmentsmenu');
-
         $perPage = $request->input('per_page', 5);
         $search = $request->input('search');
         $user = Auth::user();
@@ -78,37 +86,50 @@ class EquipmentController extends Controller
         $equipmentsQuery = Equipment::with(['item', 'store']);
 
         if (!$isMaster) {
-            if ($user->role_id === 5 || strtolower($user->role->name) === 'user') {
-                if ($user->store_location) {
-                    $equipmentsQuery->where('location', $user->store_location);
-                } else {
+            switch ($user->role_id) {
+                case 5:
+                    if ($user->store_location) {
+                        $equipmentsQuery->where('location', $user->store_location);
+                    } else {
+                        $equipmentsQuery->whereRaw('1=0');
+                    }
+                    break;
+
+                case 2:
+                case 3:
+                case 4:
+                    if ($user->department_id) {
+                        $equipmentsQuery->whereHas('item', function ($q) use ($user) {
+                            $q->where('department_id', $user->department_id);
+                        });
+                    } else {
+                        $equipmentsQuery->whereRaw('1=0');
+                    }
+                    break;
+
+                default:
                     $equipmentsQuery->whereRaw('1=0');
-                }
+                    break;
             }
         }
 
         if ($search) {
             $equipmentsQuery->where(function ($q) use ($search) {
-                $q->whereHas('item', function ($q2) use ($search) {
-                    $q2->where('name', 'like', "%{$search}%");
-                })
-                    ->orWhereHas('store', function ($q3) use ($search) {
-                        $q3->where('name', 'like', "%{$search}%");
-                    })
+                $q->whereHas('item', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('store', fn($q3) => $q3->where('name', 'like', "%{$search}%"))
                     ->orWhere('serial_number', 'like', "%{$search}%")
                     ->orWhere('transactions_id', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%");
             });
         }
 
-        if ($perPage === 'all') {
-            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
-        } else {
-            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->paginate((int)$perPage);
-        }
+        $equipments = $perPage === 'all'
+            ? $equipmentsQuery->orderBy('created_at', 'desc')->get()
+            : $equipmentsQuery->orderBy('created_at', 'desc')->paginate((int) $perPage);
 
         return view('partials.equipments-tbody', compact('equipments'));
     }
+
     public function lastUpdated()
     {
         $lastUpdated = Equipment::max('updated_at');
@@ -128,12 +149,26 @@ class EquipmentController extends Controller
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
-        if (!$isMaster && $user->store_location !== $equipment->location) {
-            abort(403, 'Unauthorized access to this equipment');
+        if (!$isMaster) {
+            if ($user->role_id === 5) {
+                // Role user biasa: filter berdasarkan lokasi
+                if ($user->store_location !== $equipment->location) {
+                    abort(403, 'Unauthorized: This equipment is not at your store.');
+                }
+            } elseif (in_array($user->role_id, [2, 3, 4])) {
+                // Role manager, spv, staff: filter berdasarkan department
+                if (!$equipment->item || $user->department_id !== $equipment->item->department_id) {
+                    abort(403, 'Unauthorized: You are not allowed to view equipment from another department.');
+                }
+            } else {
+                // Selain itu, tolak akses
+                abort(403, 'Unauthorized: Role not allowed.');
+            }
         }
 
         return view('equipments.show', compact('equipment'));
     }
+
 
     public function showMigrateForm(Equipment $equipment)
     {
@@ -171,6 +206,7 @@ class EquipmentController extends Controller
         $rules = [
             'store_id' => 'required|exists:store,id',
             'frequensi' => 'nullable|in:weekly,monthly',
+            'alias' => 'nullable|string|max:50'
         ];
 
         if ($newStore->type === 'Store') {
@@ -200,8 +236,8 @@ class EquipmentController extends Controller
         }
 
         $equipment->location = $request->store_id;
+        $equipment->alias = $request->alias;
         $equipment->save();
-
 
         if ($newStore->name === 'Service Center' || ($newStore->name === 'Storage Center' && $newStore->type === 'Warehouse')) {
 

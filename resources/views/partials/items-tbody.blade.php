@@ -24,6 +24,7 @@
             <td class="px-4 py-2 md:px-6 md:py-3 capitalize brand">{{ strtolower($item->brand) }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 uppercase model">{{ $item->model }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 capitalize category">{{ strtolower($item->category) }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 capitalize category">{{ strtolower($item->department->name) }}</td>
             <td class="px-2 py-2 md:px-4 md:py-3">
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
                     @can('inventoryitems.edit')

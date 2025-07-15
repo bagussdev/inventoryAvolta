@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class OutletDataController extends Controller
 {
@@ -19,7 +21,13 @@ class OutletDataController extends Controller
         $search = $request->input('search');
         $perPage = $request->input('per_page', 5);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
         $storesQuery = Store::query()
+            ->when(!$isMaster, function ($query) {
+                $query->where('type', 'store');
+            })
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('site_code', 'like', "%{$search}%")
@@ -47,7 +55,13 @@ class OutletDataController extends Controller
         $search = $request->input('search');
         $perPage = $request->input('per_page', 5);
 
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
         $storesQuery = Store::query()
+            ->when(!$isMaster, function ($query) {
+                $query->where('type', 'store');
+            })
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
                     ->orWhere('site_code', 'like', "%{$search}%")

@@ -202,7 +202,7 @@ class ItemController extends Controller
         $this->authorize('inventoryitems.create');
 
         $isMaster = Gate::allows('isMaster');
-
+        $user = Auth::user();
         // 1. Tentukan aturan validasi
         $rules = [
             'name' => 'required|string|max:255',
@@ -234,7 +234,7 @@ class ItemController extends Controller
         // 4. Tentukan department_id
         if (!$isMaster) {
             // Jika bukan Master, ambil department_id dari user yang login
-            $user = Auth::user();
+
             if (!$user->department_id) {
                 return redirect()->back()->with('error', 'Akun Anda tidak terhubung dengan departemen manapun.')->withInput();
             }

@@ -13,6 +13,7 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="brand">Brand</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="model">Model</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="category">Category</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="category">Department</th>
                         <th class="px-4 py-2 md:px-6 md:py-3">Actions</th>
                     </tr>
                 </thead>
@@ -29,8 +30,9 @@
 <p id="last-updated-display" class="text-xs text-gray-400 mt-2">
     Last updated at: {{ $items->max('updated_at') }}
 </p>
-{{-- Pagination --}}
-<x-per-page-selector :items="$items" route="items.index" :perPage="$perPage" :search="$search" :showPagination="true" />
+@if ($showPagination)
+    <x-per-page-selector :items="$items" route="items.index" :perPage="$perPage" :search="$search" :showPagination="true" />
+@endif
 
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>

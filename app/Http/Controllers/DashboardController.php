@@ -6,6 +6,8 @@ use App\Models\Incident;
 use App\Models\Request as RequestModel;
 use App\Models\Equipment;
 use App\Models\Maintenance;
+use App\Models\User;
+use App\Models\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -38,15 +40,21 @@ class DashboardController extends Controller
         $totalRequests = RequestModel::count();
         $totalEquipments = Equipment::count();
         $totalMaintenances = Maintenance::count();
+        $totalUser = User::count();
+        $totalOutlet = Store::count();
 
-        $incidents = Incident::where('status', 'waiting')->latest()->take(4)->get();
-        $maintenances = Maintenance::where('status', 'maintenance')->latest()->take(4)->get();
+        $incidents = Incident::whereNotIn('status', ['completed'])->latest()->take(4)->get();
+        $maintenances = Maintenance::whereNotIn('status', ['completed', 'cancelled'])->latest()->take(4)->get();
+        $users = User::latest()->take(4)->get();
+        $outlet = Store::latest()->take(4)->get();
 
         return view('dashboard.master', compact(
             'totalIncidents',
             'totalRequests',
             'totalEquipments',
             'totalMaintenances',
+            'totalUser',
+            'totalOutlet',
             'incidents',
             'maintenances'
         ));
@@ -54,37 +62,43 @@ class DashboardController extends Controller
 
     protected function managerDashboard($user)
     {
-        $totalIncidents = Incident::count();
-        $totalRequests = RequestModel::count();
+        $totalIncidents = Incident::where('department_to', $user->department_id)->count();
+        $totalRequests = RequestModel::where('department_to', $user->department_id)->count();
         $totalEquipments = Equipment::count();
-        $totalMaintenances = Maintenance::count();
+        $totalMaintenances = Maintenance::whereHas('equipment.item', function ($query) use ($user) {
+            $query->where('department_id', $user->department_id);
+        })->count();
 
-        $incidents = Incident::latest()->take(10)->get();
-        $maintenances = Maintenance::latest()->take(10)->get();
-
+        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $maintenances = Maintenance::whereHas('equipment.item', function ($query) use ($user) {
+            $query->where('department_id', $user->department_id);
+        });
         return view('dashboard.manager', compact(
             'totalIncidents',
             'totalRequests',
             'totalEquipments',
             'totalMaintenances',
             'incidents',
+            'requests',
             'maintenances'
         ));
     }
 
     protected function supervisorDashboard($user)
     {
-        $totalIncidents = Incident::where('department_to', $user->department)->count();
-        $totalRequests = RequestModel::where('department_to', $user->department)->count();
+        $totalIncidents = Incident::where('department_to', $user->department_id)->count();
+        $totalRequests = RequestModel::where('department_to', $user->department_id)->count();
         $totalEquipments = Equipment::count();
-        $totalMaintenances = Maintenance::whereHas('equipment', function ($query) use ($user) {
-            $query->where('location', $user->location);
+        $totalMaintenances = Maintenance::whereHas('equipment.item', function ($query) use ($user) {
+            $query->where('department_id', $user->department_id);
         })->count();
 
-        $incidents = Incident::where('department_to', $user->department)->latest()->take(10)->get();
-        $maintenances = Maintenance::whereHas('equipment', function ($q) use ($user) {
-            $q->where('location', $user->location);
-        })->latest()->take(10)->get();
+        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $maintenances = Maintenance::whereHas('equipment.item', function ($q) use ($user) {
+            $q->where('department_id', $user->department_id);
+        })->latest()->take(4)->get();
 
         return view('dashboard.supervisor', compact(
             'totalIncidents',
@@ -92,19 +106,25 @@ class DashboardController extends Controller
             'totalEquipments',
             'totalMaintenances',
             'incidents',
-            'maintenances'
+            'maintenances',
+            'requests',
         ));
     }
 
     protected function staffDashboard($user)
     {
-        $totalIncidents = Incident::where('department_to', $user->department)->count();
-        $totalRequests = RequestModel::where('department_to', $user->department)->count();
+        $totalIncidents = Incident::where('department_to', $user->department_id)->count();
+        $totalRequests = RequestModel::where('department_to', $user->department_id)->count();
         $totalEquipments = Equipment::count();
-        $totalMaintenances = Maintenance::where('picstaff', $user->id)->count();
+        $totalMaintenances = Maintenance::whereHas('equipment.item', function ($query) use ($user) {
+            $query->where('department_id', $user->department_id);
+        })->count();
 
-        $incidents = Incident::where('department_to', $user->department)->latest()->take(10)->get();
-        $maintenances = Maintenance::where('picstaff', $user->id)->latest()->take(10)->get();
+        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $maintenances = Maintenance::whereHas('equipment.item', function ($q) use ($user) {
+            $q->where('department_id', $user->department_id);
+        })->latest()->take(4)->get();
 
         return view('dashboard.staff', compact(
             'totalIncidents',
@@ -112,7 +132,8 @@ class DashboardController extends Controller
             'totalEquipments',
             'totalMaintenances',
             'incidents',
-            'maintenances'
+            'maintenances',
+            'requests'
         ));
     }
 
@@ -122,11 +143,11 @@ class DashboardController extends Controller
         $totalRequests = RequestModel::where('location', $user->store_location)->count();
         $totalEquipments = Equipment::where('location', $user->store_location)->count();
 
-        $incidents = Incident::where('location', $user->store_location)->where('status', 'waiting')
+        $incidents = Incident::where('location', $user->store_location)
             ->latest()
             ->take(4)
             ->get();
-        $requestsModel = RequestModel::where('location', $user->store_location)->where('status', 'waiting')
+        $requestsModel = RequestModel::where('location', $user->store_location)
             ->latest()
             ->take(4)
             ->get();

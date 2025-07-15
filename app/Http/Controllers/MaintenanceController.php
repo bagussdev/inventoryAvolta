@@ -348,31 +348,38 @@ class MaintenanceController extends Controller
     public function show(Maintenance $maintenance)
     {
         $this->authorize('maintenancemenu');
-        // 1. Eager load all necessary relationships for the view.
+
         $maintenance->load(['equipment.item', 'staff', 'confirm', 'usedSpareParts.sparepart.item']);
 
-        // 2. Get the logged-in user and check their access using a Gate.
         $user = Auth::user();
-        $isMaster = Gate::allows('isMaster'); // Check the 'isMaster' Gate
+        $isMaster = Gate::allows('isMaster');
 
-        // 3. Fetch spareparts data with filtering logic.
-        // If the user is a master, fetch all spareparts.
+        // Jika bukan master, cek role 2/3/4 boleh akses sesuai departemen
+        if (!$isMaster) {
+            if (in_array($user->role_id, [2, 3, 4])) {
+                if (!$user->department_id || $maintenance->equipment->item->department_id !== $user->department_id) {
+                    abort(403, 'You are not authorized to view this maintenance.');
+                }
+            } else {
+                // Role selain 2-4 tidak boleh akses (misal role_id 5 / user biasa)
+                abort(403, 'You are not authorized to view this maintenance.');
+            }
+        }
+
+        // Spareparts filtering
         if ($isMaster) {
             $spareparts = Sparepart::with('item')->get();
-        }
-        // If not a master, filter spareparts by the user's department via the `item` relationship.
-        else {
-            // Assumes: Sparepart -> Item -> Department
+        } else {
             $spareparts = Sparepart::with('item')
                 ->whereHas('item', function ($query) use ($user) {
                     $query->where('department_id', $user->department_id);
                 })
                 ->get();
         }
-        // dd($spareparts->keyBy('id'));
-        // 4. Pass the maintenance and spareparts variables to the view.
+
         return view('maintenances.show', compact('maintenance', 'spareparts'));
     }
+
 
     private function getNotificationTargets(string $type, int $departmentId = null): array
     {
@@ -395,8 +402,21 @@ class MaintenanceController extends Controller
     {
         $this->authorize('schedulemaintenance.edit');
         $maintenance = Maintenance::with('equipment.item')->findOrFail($id);
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if (!$isMaster) {
+            if (in_array($user->role_id, [2, 3, 4])) {
+                $item = $maintenance->equipment?->item;
+                if (!$item || $item->department_id !== $user->department_id) {
+                    abort(403, 'You are not authorized to edit this maintenance schedule.');
+                }
+            } else {
+                abort(403, 'You are not authorized to edit this maintenance schedule.');
+            }
+        }
         if ($maintenance->status !== 'not due') {
-            abort(404);
+            abort(403, "Cant edit if status '$maintenance->status'.");
         }
         $stores = Store::all();
 
@@ -451,11 +471,29 @@ class MaintenanceController extends Controller
     public function proses($id)
     {
         $this->authorize('maintenance.proses');
-        $maintenance = Maintenance::findOrFail($id);
+        $maintenance = Maintenance::with('equipment.item')->findOrFail($id);
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if (strtolower($maintenance->status) !== 'maintenance') {
+            abort(403, 'Only maintenance with status "maintenance" can be started.');
+        }
+
+        if (!$isMaster) {
+            if (in_array($user->role_id, [2, 3, 4])) {
+                $item = $maintenance->equipment?->item;
+                if (!$item || $item->department_id !== $user->department_id) {
+                    abort(403, 'You are not authorized to process this maintenance.');
+                }
+            } else {
+                abort(403, 'You are not authorized to process this maintenance.');
+            }
+        }
 
         if ($maintenance->status !== 'maintenance') {
             // If the status is not 'in progress', abort with a 404 error and a custom message.
-            abort(404);
+            abort(403, 'No maintenance needed.');
         }
         $maintenance->status = 'in progress';
         $maintenance->picstaff = Auth::id(); // pastikan login user adalah staff
@@ -486,6 +524,7 @@ class MaintenanceController extends Controller
     public function confirm($id)
     {
         $this->authorize('maintenance.confirm');
+
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
 
@@ -496,6 +535,22 @@ class MaintenanceController extends Controller
             'staff',
             'confirm'
         ])->findOrFail($id);
+
+        if (strtolower($maintenance->status) !== 'in progress') {
+            abort(403, 'Only incidents with status "in progress" can be started.');
+        }
+
+        if (!$isMaster) {
+            if (in_array($user->role_id, [2, 3, 4])) {
+                $item = $maintenance->equipment?->item;
+                if (!$item || $item->department_id !== $user->department_id) {
+                    abort(403, 'You are not authorized to confirm this maintenance.');
+                }
+            } else {
+                // role_id 5 or others not allowed
+                abort(403, 'You are not authorized to confirm this maintenance.');
+            }
+        }
 
         // --- Add this logic to restrict access based on status ---
         if ($maintenance->status !== 'in progress') {
@@ -765,7 +820,26 @@ class MaintenanceController extends Controller
     public function closed($id)
     {
         $this->authorize('maintenance.closed');
-        $maintenance = Maintenance::findOrFail($id);
+        $maintenance = Maintenance::with('equipment.item')->findOrFail($id);
+
+        $user = Auth::user();
+        $isMaster = Gate::allows('isMaster');
+
+        if (strtolower($maintenance->status) !== 'resolved') {
+            abort(403, 'Only incidents with status "resolved" can be closed.');
+        }
+
+        if (!$isMaster) {
+            if (in_array($user->role_id, [2, 3, 4])) {
+                $item = $maintenance->equipment?->item;
+                if (!$item || $item->department_id !== $user->department_id) {
+                    abort(403, 'You are not authorized to close this maintenance.');
+                }
+            } else {
+                abort(403, 'You are not authorized to close this maintenance.');
+            }
+        }
+
         if ($maintenance->status !== 'resolved') {
             // If the status is not 'in progress', abort with a 404 error and a custom message.
             abort(404);

@@ -25,7 +25,9 @@
 <p id="last-updated-display" class="text-xs text-gray-400 mt-2">
     Last updated at: {{ $users->max('updated_at') }}
 </p>
-<x-per-page-selector :items="$users" route="users.index" :perPage="$perPage" :search="$search" :showPagination="true" />
+@if ($showPagination)
+    <x-per-page-selector :items="$users" route="users.index" :perPage="$perPage" :search="$search" :showPagination="true" />
+@endif
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>

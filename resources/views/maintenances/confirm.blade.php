@@ -184,14 +184,12 @@
                         focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
                 </div>
 
-                <div class="flex justify-center mb-6">
+                <div class="flex flex-wrap justify-start gap-2 mb-6">
                     <button type="button" onclick="openSparepartModal()"
                         class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
                         + Add Spareparts Used
                     </button>
-                </div>
-                <div id="sparepartsContainer" class="hidden"></div>
-                <div class="mt-6 mb-4 text-center">
+                    <div id="sparepartsContainer" class="hidden"></div>
                     <button type="submit"
                         class="bg-green-600 text-white px-8 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
                         Confirm

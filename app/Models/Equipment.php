@@ -17,6 +17,7 @@ class Equipment extends Model
         'location',
         'status',
         'notes',
+        'alias'
     ];
 
     // Relasi ke Item

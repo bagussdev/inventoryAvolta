@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
                         })
                         ->orWhere(function ($q) use ($user) {
                             if ($user->store_location) {
-                                $q->where('store_id', $user->store_location);
+                                $q->where('store_id', $user->store_location)->where('role_id', $user->role_id);;
                             }
                         });
                 })

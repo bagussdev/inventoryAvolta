@@ -51,7 +51,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-white mb-1">Migrate
                             From</label>
@@ -70,14 +70,19 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-white mb-1">Schedule
-                            Maintenance</label>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-white mb-1">Schedule</label>
                         <select name="frequensi"
                             class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white">
                             <option value="">-</option>
                             <option value="weekly">Weekly</option>
                             <option value="monthly">Monthly</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-white mb-1">Alias</label>
+                        <input type="text"
+                            class="w-full px-3 py-2 border rounded-md dark:bg-gray-700 dark:text-white"
+                            placeholder="Input your alias place" name="alias">
                     </div>
                 </div>
 

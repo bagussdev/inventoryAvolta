@@ -21,7 +21,7 @@
             <td class="px-4 py-2 md:px-6 md:py-3 site_code">{{ $store->site_code }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 since">
                 {{ \Carbon\Carbon::parse($store->since)->format('d M Y') }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $store->location }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 location text-left">{{ $store->location }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 status">
                 @if ($store->status == 'Y')
                     <span class="px-3 py-1 text-xs font-medium rounded-md bg-green-100 text-green-800">Active</span>

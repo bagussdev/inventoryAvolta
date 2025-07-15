@@ -38,16 +38,17 @@
                     <div>
                         <x-input-label for="no_telfon" :value="'Phone Number'" />
                         <x-text-input id="no_telfon" name="no_telfon" type="number" class="mt-1 block w-full"
-                            :value="old('no_telfon')" required />
+                            :value="old('no_telfon')" required maxlength="12"
+                            oninput="if (this.value.length > 12) this.value = this.value.slice(0, 12)" />
                     </div>
 
                     {{-- Store Location --}}
                     <div>
-                        <x-input-label for="store_location" :value="'Store Location'" />
+                        <x-input-label for="store_location" :value="'Location'" />
                         <select id="store_location" name="store_location"
                             class="w-full mt-1 border-gray-300 dark:border-gray-700 rounded-md dark:bg-gray-700 dark:text-white"
                             required>
-                            <option value="">Choose store location</option>
+                            <option value="">Choose location</option>
                             @foreach ($stores as $store)
                                 <option value="{{ $store->id }}"
                                     {{ old('store_location') == $store->id ? 'selected' : '' }}>
