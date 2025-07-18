@@ -19,7 +19,7 @@
                         class="h-8 w-8 sm:h-10 sm:w-10 object-contain">
                     <span
                         class="hidden sm:block self-center text-base font-bold sm:text-2xl whitespace-nowrap text-purple-600">
-                        Inventory Avolta
+                        {{ config('app.name') }}
                     </span>
                 </a>
             </div>

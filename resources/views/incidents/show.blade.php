@@ -46,7 +46,17 @@
                         $mobileFields = [
                             'ID Incident' => $incident->unique_id,
                             'Item' => ucwords(
-                                strtolower($incident->equipment->item->name ?? ($incident->item_description ?? '-')),
+                                strtolower(
+                                    optional(optional($incident->equipment)->item)->name .
+                                        (optional($incident->equipment)->item &&
+                                        (optional($incident->equipment)->alias || $incident->item_description)
+                                            ? ' - ' .
+                                                (optional($incident->equipment)->alias ?? $incident->item_description)
+                                            : (!optional($incident->equipment)->item
+                                                ? optional($incident->equipment)->alias ??
+                                                    ($incident->item_description ?? '-')
+                                                : '')),
+                                ),
                             ),
                             'Model' => $incident->item->model ?? '-',
                             'Brand' => $incident->item->brand ?? '-',
@@ -79,6 +89,7 @@
                                     'in progress' => 'bg-blue-100 text-blue-800',
                                     'pending' => 'bg-red-100 text-red-800',
                                     'waiting' => 'bg-yellow-100 text-yellow-600',
+                                    'completed' => 'bg-green-100 text-green-600',
                                     default => 'bg-gray-100 text-gray-600',
                                 } }}">
                                 {{ ucfirst($incident->status) }}
@@ -100,7 +111,17 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ ucwords(strtolower($incident->equipment->item->name ?? ($incident->item_description ?? '-'))) }}
+                            {{ ucwords(
+                                strtolower(
+                                    optional(optional($incident->equipment)->item)->name .
+                                        (optional($incident->equipment)->item &&
+                                        (optional($incident->equipment)->alias || $incident->item_description)
+                                            ? ' - ' . (optional($incident->equipment)->alias ?? $incident->item_description)
+                                            : (!optional($incident->equipment)->item
+                                                ? optional($incident->equipment)->alias ?? ($incident->item_description ?? '-')
+                                                : '')),
+                                ),
+                            ) }}
                         </div>
                     </div>
                     <div>
@@ -164,6 +185,7 @@
                                 'in progress' => 'bg-blue-100 text-blue-800',
                                 'pending' => 'bg-red-100 text-red-800',
                                 'waiting' => 'bg-yellow-100 text-yellow-600',
+                                'completed' => 'bg-green-100 text-green-600',
                                 default => 'bg-gray-100 text-gray-600',
                             } }}">
                             {{ ucfirst($incident->status) }}

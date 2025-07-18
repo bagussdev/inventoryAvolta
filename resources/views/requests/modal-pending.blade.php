@@ -6,7 +6,7 @@
             onsubmit="return confirmAndLoad('Are you Sure to mark Request as Pending?')">
             @csrf
             <label for="notes_pending" class="block mb-2 text-sm text-gray-700 dark:text-gray-300">Notes</label>
-            <textarea name="notes" id="notes_pending" rows="4"
+            <textarea name="notes" id="notes_pending" rows="4" required
                 class="w-full rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm px-3 py-2"></textarea>
 
             <div class="flex justify-end mt-4 gap-2">

@@ -280,9 +280,13 @@ class MaintenanceController extends Controller
         });
 
         // Urutkan berdasarkan tanggal resolved terbaru
-        $maintenances = $maintenancesQuery->orderBy('updated_at', 'desc')
-            ->paginate($perPage)
-            ->appends(request()->query());
+        if ($perPage === 'all') {
+            $maintenances = $maintenancesQuery->orderBy('updated_at', 'desc')->get();
+        } else {
+            $maintenances = $maintenancesQuery->orderBy('updated_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(request()->query());
+        }
 
         return view('maintenances.completed', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate'));
     }
@@ -379,7 +383,6 @@ class MaintenanceController extends Controller
 
         return view('maintenances.show', compact('maintenance', 'spareparts'));
     }
-
 
     private function getNotificationTargets(string $type, int $departmentId = null): array
     {

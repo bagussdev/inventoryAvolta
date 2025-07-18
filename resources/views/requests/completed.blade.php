@@ -54,7 +54,11 @@
                         <tr
                             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                             <td class="px-5 py-4 md:px-6 md:py-5 no">{{ $loop->iteration }}</td>
-                            <td class="px-5 py-4 md:px-6 md:py-5 id">{{ $request->unique_id }}</td>
+                            <td class="px-5 py-4 md:px-6 md:py-5 id">
+                                <a href="{{ route('requests.show', $request->id) }}"
+                                    class="text-blue-600 hover:underline">{{ $request->unique_id }}
+                                </a>
+                            </td>
                             <td class="px-5 py-4 md:px-6 md:py-5 report">{{ $request->user->name ?? '-' }}</td>
                             <td class="px-5 py-4 md:px-6 md:py-5 department">{{ $request->department->name ?? '-' }}
                             </td>

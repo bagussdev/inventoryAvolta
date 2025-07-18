@@ -19,7 +19,11 @@
             <td class="px-4
             py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
             </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $request->unique_id }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 id">
+                <a href="{{ route('requests.show', $request->id) }}" class="text-blue-600 hover:underline">
+                    {{ $request->unique_id }}
+                </a>
+            </td>
             <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $request->user->name ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $request->department->name ?? '-' }}
             </td>

@@ -34,7 +34,16 @@
                         $fields = [
                             ['label' => 'ID', 'value' => $maintenance->id],
                             ['label' => 'Store', 'value' => $maintenance->equipment->store->name ?? '-'],
-                            ['label' => 'Item', 'value' => $maintenance->equipment->item->name ?? '-'],
+                            [
+                                'label' => 'Item',
+                                'value' => ucwords(
+                                    strtolower(
+                                        optional(optional($maintenance->equipment)->item)->name .
+                                            ' - ' .
+                                            ($maintenance->equipment->alias ?? ($maintenance->item_description ?? '-')),
+                                    ),
+                                ),
+                            ],
                             [
                                 'label' => 'Scheduled',
                                 'value' => \Carbon\Carbon::parse($maintenance->maintenance_date)->format('d M Y'),
@@ -86,7 +95,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">ID</label>
-                        <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">{{ $maintenance->id }}</div>
+                        <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">MNT-000{{ $maintenance->id }}
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Store</label>
@@ -96,7 +106,15 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $maintenance->equipment->item->name ?? '-' }}</div>
+                            {{ ucwords(
+                                strtolower(
+                                    optional(optional($maintenance->equipment)->item)->name .
+                                        (!empty($maintenance->equipment->alias) || !empty($maintenance->item_description)
+                                            ? ' - ' . ($maintenance->equipment->alias ?? $maintenance->item_description)
+                                            : ''),
+                                ),
+                            ) }}
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
@@ -191,7 +209,7 @@
                     </button>
                     <div id="sparepartsContainer" class="hidden"></div>
                     <button type="submit"
-                        class="bg-green-600 text-white px-8 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
                         Confirm
                     </button>
                 </div>

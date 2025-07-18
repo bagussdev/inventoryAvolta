@@ -17,12 +17,26 @@
         <tr
             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
             <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $incident->unique_id ?? '-' }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 id">
+                <a href="{{ route('incidents.show', $incident->id) }}" class="text-blue-600 hover:underline">
+                    {{ $incident->unique_id ?? '-' }}
+                </a>
+            </td>
             <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 equipment">
-                {{ ucwords(strtolower($incident->equipment->item->name ?? ($incident->item_description ?? '-'))) }}
+                {{ ucwords(
+                    strtolower(
+                        optional(optional($incident->equipment)->item)->name .
+                            (optional($incident->equipment)->item &&
+                            (optional($incident->equipment)->alias || $incident->item_description)
+                                ? ' - ' . (optional($incident->equipment)->alias ?? $incident->item_description)
+                                : (!optional($incident->equipment)->item
+                                    ? optional($incident->equipment)->alias ?? ($incident->item_description ?? '-')
+                                    : '')),
+                    ),
+                ) }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $incident->store->site_code ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 date">

@@ -56,12 +56,27 @@
                             <td class="px-4
                             py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
                             </td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $incident->unique_id ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 id">
+                                <a href="{{ route('incidents.show', $incident->id) }}"
+                                    class="text-blue-600 hover:underline">{{ $incident->unique_id ?? '-' }}
+                                </a>
+                            </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
                             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}
                             </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 equipment">
-                                {{ ucfirst(strtolower($incident->equipment->item->name ?? '-')) }}</td>
+                                {{ ucwords(
+                                    strtolower(
+                                        optional(optional($incident->equipment)->item)->name .
+                                            (optional($incident->equipment)->item &&
+                                            (optional($incident->equipment)->alias || $incident->item_description)
+                                                ? ' - ' . (optional($incident->equipment)->alias ?? $incident->item_description)
+                                                : (!optional($incident->equipment)->item
+                                                    ? optional($incident->equipment)->alias ?? ($incident->item_description ?? '-')
+                                                    : '')),
+                                    ),
+                                ) }}
+                            </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $incident->store->site_code ?? '-' }}
                             </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 date">
@@ -100,32 +115,10 @@
                     @endforelse
                 </tbody>
             </table>
-
-            <div class="mt-6 px-4 pb-3 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                    {{ $incidents->appends(request()->query())->links() }}
-                </div>
-                <div class="flex items-center gap-4 flex-wrap justify-end">
-                    <form method="GET" action="{{ route('incidents.completed') }}"
-                        onsubmit="showFullScreenLoader();">
-                        <input type="hidden" name="search" value="{{ request('search') }}">
-                        <input type="hidden" name="start_date" value="{{ request('start_date') }}">
-                        <input type="hidden" name="end_date" value="{{ request('end_date') }}">
-                        <div class="flex items-center gap-1">
-                            <label for="per_page" class="text-sm text-gray-600 dark:text-gray-300">Show</label>
-                            <select name="per_page" id="per_page" onchange="this.form.submit()"
-                                class="text-sm w-16 px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500">
-                                <option value="5" {{ ($perPage ?? 5) == 5 ? 'selected' : '' }}>5</option>
-                                <option value="10" {{ ($perPage ?? 5) == 10 ? 'selected' : '' }}>10</option>
-                                <option value="20" {{ ($perPage ?? 5) == 20 ? 'selected' : '' }}>20</option>
-                                <option value="50" {{ ($perPage ?? 5) == 50 ? 'selected' : '' }}>50</option>
-                            </select>
-                            <span class="text-sm text-gray-600 dark:text-gray-400">per page</span>
-                        </div>
-                    </form>
-                </div>
-            </div>
         </div>
+
+        <x-per-page-selector :items="$incidents" route="incidents.completed" :perPage="$perPage" :search="$search"
+            :showPagination="true" />
 
         @push('scripts')
             <script>

@@ -42,6 +42,8 @@
                             class="bg-gray-50 dark:bg-gray-700 text-xs uppercase text-gray-700 dark:text-gray-400 whitespace-nowrap">
                             <tr>
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="no">No</th>
+                                <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="no">Maintenance ID
+                                </th>
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="name">Equipment
                                 </th>
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="model">S/N</th>
@@ -62,8 +64,22 @@
                             @forelse ($maintenances as $maintenance)
                                 <tr>
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-2 md:px-6 md:py-3 no">
+                                        <a href="{{ route('maintenances.show', $maintenance->id) }}"
+                                            class="text-blue-600 hover:underline">
+                                            MNT-000{{ ucfirst(strtolower($maintenance->id ?? '-')) }}
+                                        </a>
+                                    </td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 name">
-                                        {{ ucfirst(strtolower($maintenance->equipment->item->name ?? '-')) }}</td>
+                                        {{ ucwords(
+                                            strtolower(
+                                                optional(optional($maintenance->equipment)->item)->name .
+                                                    (!empty($maintenance->equipment->alias) || !empty($maintenance->item_description)
+                                                        ? ' - ' . ($maintenance->equipment->alias ?? $maintenance->item_description)
+                                                        : ''),
+                                            ),
+                                        ) }}
+                                    </td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 model">
                                         {{ $maintenance->equipment->serial_number ?? '-' }}</td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 store">

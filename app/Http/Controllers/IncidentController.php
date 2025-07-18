@@ -386,9 +386,13 @@ class IncidentController extends Controller
             ]);
         }
 
-        $incidents = $incidentsQuery->latest('created_at')
-            ->paginate($perPage)
-            ->appends($request->query());
+        if ($perPage === 'all') {
+            $incidents = $incidentsQuery->latest('created_at')->get();
+        } else {
+            $incidents = $incidentsQuery->latest('created_at')
+                ->paginate((int) $perPage)
+                ->appends($request->query());
+        }
 
         return view('incidents.completed', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
     }
@@ -571,7 +575,7 @@ class IncidentController extends Controller
             $user = Auth::user();
 
             $item = $incident->item?->name ?? ($incident->item_description ?: '-');
-            $location = $incident->location ?? '-';
+            $location = $incident->location->name ?? '-';
 
             $title = 'New Incident Reported';
             $message = "New incident <b>{$incident->unique_id}</b> has been reported by <b>{$user->name}</b> for item <b>{$item}</b> at <b>{$location}</b>.";

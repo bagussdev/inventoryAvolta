@@ -173,7 +173,7 @@ class EquipmentController extends Controller
     public function showMigrateForm(Equipment $equipment)
     {
         $this->authorize('equipments.migrate');
-        $stores = Store::where('id', '!=', $equipment->store_id)->get();
+        $stores = Store::where('id', '!=', $equipment->location)->where('type', '!=', 'Office')->get();
         return view('equipments.migrate', compact('equipment', 'stores'));
     }
     private function getNotificationTargets(string $type, int $departmentId = null): array
@@ -206,10 +206,12 @@ class EquipmentController extends Controller
         $rules = [
             'store_id' => 'required|exists:store,id',
             'frequensi' => 'nullable|in:weekly,monthly',
-            'alias' => 'nullable|string|max:50'
+            'alias' => 'nullable|string|max:50',
         ];
 
+        // Jika store baru bertipe "Store", alias wajib
         if ($newStore->type === 'Store') {
+            $rules['alias'] = 'required|string|max:50'; // alias now required
             $rules['frequensi'] = 'required|in:weekly,monthly';
         }
 
@@ -218,6 +220,7 @@ class EquipmentController extends Controller
             'frequensi.in' => 'Frekuensi harus weekly atau monthly.',
             'store_id.required' => 'Store tujuan wajib diisi.',
             'store_id.exists' => 'Store tujuan tidak ditemukan.',
+            'alias.required' => 'Alias wajib diisi saat migrasi ke tipe Store.',
         ]);
 
         if ($validator->fails()) {
@@ -226,7 +229,9 @@ class EquipmentController extends Controller
                 ->withInput();
         }
 
+        // Set status equipment
         if ($currentStore && $currentStore->type === 'Store' && $newStore->type === 'Store' && $currentStore->id !== $newStore->id) {
+            // Pindah antar store (status tidak berubah)
         } elseif ($newStore->type === 'Store') {
             $equipment->status = 'used';
         } elseif ($newStore->name === 'Storage Center' && $newStore->type === 'Warehouse') {
@@ -235,8 +240,16 @@ class EquipmentController extends Controller
             $equipment->status = 'maintenance';
         }
 
+        // Simpan migrasi
         $equipment->location = $request->store_id;
-        $equipment->alias = $request->alias;
+
+        // Alias logic
+        if ($newStore->type === 'Store') {
+            $equipment->alias = $request->alias;
+        } else {
+            $equipment->alias = null;
+        }
+
         $equipment->save();
 
         if ($newStore->name === 'Service Center' || ($newStore->name === 'Storage Center' && $newStore->type === 'Warehouse')) {

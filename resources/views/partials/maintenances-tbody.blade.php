@@ -12,10 +12,19 @@
             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
             <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 name">
-                {{ ucfirst(strtolower($maintenance->equipment->item->name ?? '-')) }}
+                <a href="{{ route('maintenances.show', $maintenance->id) }}" class="text-blue-600 hover:underline">
+                    MNT-000{{ ucfirst(strtolower($maintenance->id ?? '-')) }}
+                </a>
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 model">
-                {{ $maintenance->equipment->alias ?? '-' }}
+                {{ ucwords(
+                    strtolower(
+                        optional(optional($maintenance->equipment)->item)->name .
+                            (!empty($maintenance->equipment->alias) || !empty($maintenance->item_description)
+                                ? ' - ' . ($maintenance->equipment->alias ?? $maintenance->item_description)
+                                : ''),
+                    ),
+                ) }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 store">
                 {{ $maintenance->equipment->store->name ?? '-' }}
