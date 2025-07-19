@@ -69,11 +69,11 @@ class DashboardController extends Controller
             $query->where('department_id', $user->department_id);
         })->count();
 
-        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
-        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
-        $maintenances = Maintenance::whereHas('equipment.item', function ($query) use ($user) {
-            $query->where('department_id', $user->department_id);
-        });
+        $incidents = Incident::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
+        $maintenances = Maintenance::whereHas('equipment.item', function ($q) use ($user) {
+            $q->where('department_id', $user->department_id);
+        })->whereNotIn('status', ['completed'])->latest()->take(4)->get();
         return view('dashboard.manager', compact(
             'totalIncidents',
             'totalRequests',
@@ -94,11 +94,11 @@ class DashboardController extends Controller
             $query->where('department_id', $user->department_id);
         })->count();
 
-        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
-        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $incidents = Incident::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
         $maintenances = Maintenance::whereHas('equipment.item', function ($q) use ($user) {
             $q->where('department_id', $user->department_id);
-        })->latest()->take(4)->get();
+        })->whereNotIn('status', ['completed'])->latest()->take(4)->get();
 
         return view('dashboard.supervisor', compact(
             'totalIncidents',
@@ -120,11 +120,11 @@ class DashboardController extends Controller
             $query->where('department_id', $user->department_id);
         })->count();
 
-        $incidents = Incident::where('department_to', $user->department_id)->latest()->take(4)->get();
-        $requests = RequestModel::where('department_to', $user->department_id)->latest()->take(4)->get();
+        $incidents = Incident::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
+        $requests = RequestModel::where('department_to', $user->department_id)->whereNotIn('status', ['completed'])->latest()->take(4)->get();
         $maintenances = Maintenance::whereHas('equipment.item', function ($q) use ($user) {
             $q->where('department_id', $user->department_id);
-        })->latest()->take(4)->get();
+        })->whereNotIn('status', ['completed'])->latest()->take(4)->get();
 
         return view('dashboard.staff', compact(
             'totalIncidents',
@@ -143,11 +143,11 @@ class DashboardController extends Controller
         $totalRequests = RequestModel::where('location', $user->store_location)->count();
         $totalEquipments = Equipment::where('location', $user->store_location)->count();
 
-        $incidents = Incident::where('location', $user->store_location)
+        $incidents = Incident::where('location', $user->store_location)->whereNotIn('status', ['completed'])
             ->latest()
             ->take(4)
             ->get();
-        $requestsModel = RequestModel::where('location', $user->store_location)
+        $requestsModel = RequestModel::where('location', $user->store_location)->whereNotIn('status', ['completed'])
             ->latest()
             ->take(4)
             ->get();
