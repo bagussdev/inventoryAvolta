@@ -13,125 +13,134 @@
             Loading data...
         </td>
     </tr>
-    @foreach ($requests as $request)
-        <tr
-            class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
-            <td class="px-4
-            py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
+    @if ($requests->isEmpty())
+        <tr>
+            <td colspan="9" class="text-center py-4 text-sm text-gray-500">
+                No request data found.
             </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 id">
-                <a href="{{ route('requests.show', $request->id) }}" class="text-blue-600 hover:underline">
-                    {{ $request->unique_id }}
-                </a>
-            </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $request->user->name ?? '-' }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $request->department->name ?? '-' }}
-            </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 item">{{ $request->item_request }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 qty">{{ $request->qty }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $request->store->site_code ?? '-' }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 date">
-                {{ \Carbon\Carbon::parse($request->created_at)->format('d M Y') }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 status">
+        </tr>
+    @else
+        @foreach ($requests as $request)
+            <tr
+                class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
+                <td class="px-4
+                py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
+                </td>
+                <td class="px-4 py-2 md:px-6 md:py-3 id">
+                    <a href="{{ route('requests.show', $request->id) }}" class="text-blue-600 hover:underline">
+                        {{ $request->unique_id }}
+                    </a>
+                </td>
+                <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $request->user->name ?? '-' }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $request->department->name ?? '-' }}
+                </td>
+                <td class="px-4 py-2 md:px-6 md:py-3 item">{{ $request->item_request }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 qty">{{ $request->qty }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $request->store->site_code ?? '-' }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 date">
+                    {{ \Carbon\Carbon::parse($request->created_at)->format('d M Y') }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 status">
+                    @php
+                        $status = strtolower($request->status);
+                        $color = match ($status) {
+                            'resolved', 'completed' => 'bg-green-100 text-green-800',
+                            'in progress' => 'bg-blue-100 text-blue-800',
+                            'pending' => 'bg-red-100 text-red-800',
+                            'waiting' => 'bg-yellow-100 text-yellow-600',
+                            default => 'bg-gray-100 text-gray-600',
+                        };
+                    @endphp
+                    <span class="inline-block px-3 py-1 text-xs font-medium rounded-md {{ $color }}">
+                        {{ ucfirst($request->status) }}
+                    </span>
+                </td>
                 @php
-                    $status = strtolower($request->status);
-                    $color = match ($status) {
-                        'resolved', 'completed' => 'bg-green-100 text-green-800',
-                        'in progress' => 'bg-blue-100 text-blue-800',
-                        'pending' => 'bg-red-100 text-red-800',
-                        'waiting' => 'bg-yellow-100 text-yellow-600',
-                        default => 'bg-gray-100 text-gray-600',
-                    };
+                    $roleName = strtolower(Auth::user()->role->name ?? '');
                 @endphp
-                <span class="inline-block px-3 py-1 text-xs font-medium rounded-md {{ $color }}">
-                    {{ ucfirst($request->status) }}
-                </span>
-            </td>
-            @php
-                $roleName = strtolower(Auth::user()->role->name ?? '');
-            @endphp
-            <td class="px-4 py-2 md:px-6 md:py-3">
-                <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
+                <td class="px-4 py-2 md:px-6 md:py-3">
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
 
-                    {{-- ROLE: USER -- tampilkan tombol Edit jika status masih waiting --}}
-                    @if ($roleName === 'user' && $request->status === 'waiting')
-                        @can('request.edit')
-                            <x-buttons.action-button text="Edit" color="green"
-                                href="{{ route('requests.edit', $request->id) }}" onclick="showFullScreenLoader();" />
-                        @endcan
-                    @endif
+                        {{-- ROLE: USER -- tampilkan tombol Edit jika status masih waiting --}}
+                        @if ($roleName === 'user' && $request->status === 'waiting')
+                            @can('request.edit')
+                                <x-buttons.action-button text="Edit" color="green"
+                                    href="{{ route('requests.edit', $request->id) }}" onclick="showFullScreenLoader();" />
+                            @endcan
+                        @endif
 
-                    {{-- ROLE: STAFF atau SPV --}}
-                    @if (in_array($roleName, ['staff', 'spv']))
-                        @if ($request->status === 'waiting')
-                            @can('request.proses')
+                        {{-- ROLE: STAFF atau SPV --}}
+                        @if (in_array($roleName, ['staff', 'spv']))
+                            @if ($request->status === 'waiting')
+                                @can('request.proses')
+                                    <form method="POST" action="{{ route('requests.start', $request->id) }}"
+                                        onsubmit="return confirmAndLoad('Start progress for this request?')">
+                                        @csrf
+                                        <x-buttons.action-button text="Proses" color="blue" />
+                                    </form>
+                                @endcan
+                            @elseif ($request->status === 'pending')
+                                @can('request.proses')
+                                    <form method="POST" action="{{ route('requests.restart', $request->id) }}"
+                                        onsubmit="return confirmAndLoad('Continue progress for this request?')">
+                                        @csrf
+                                        <x-buttons.action-button text="Continue" color="yellow" />
+                                    </form>
+                                @endcan
+                            @elseif ($request->status === 'in progress')
+                                @can('request.resolve')
+                                    <x-buttons.action-button text="Confirm" color="blue"
+                                        href="{{ route('requests.resolve', $request->id) }}"
+                                        onclick="showFullScreenLoader();" />
+                                @endcan
+                            @elseif ($request->status === 'resolved')
+                                @can('request.closed')
+                                    <form method="POST" action="{{ route('requests.complete', $request->id) }}"
+                                        onsubmit="return confirmAndLoad('Mark this request as completed?')">
+                                        @csrf
+                                        <x-buttons.action-button text="Closed" color="red" />
+                                    </form>
+                                @endcan
+                            @endif
+                        @endif
+
+                        {{-- ROLE: MASTER --}}
+                        @if ($roleName === 'master')
+                            {{-- Aksi sesuai status --}}
+                            @if ($request->status === 'waiting')
                                 <form method="POST" action="{{ route('requests.start', $request->id) }}"
                                     onsubmit="return confirmAndLoad('Start progress for this request?')">
                                     @csrf
                                     <x-buttons.action-button text="Proses" color="blue" />
                                 </form>
-                            @endcan
-                        @elseif ($request->status === 'pending')
-                            @can('request.proses')
+                                {{-- Tampilkan tombol Edit untuk semua request --}}
+                                <x-buttons.action-button text="Edit" color="green"
+                                    href="{{ route('requests.edit', $request->id) }}"
+                                    onclick="showFullScreenLoader();" />
+                            @elseif ($request->status === 'pending')
                                 <form method="POST" action="{{ route('requests.restart', $request->id) }}"
                                     onsubmit="return confirmAndLoad('Continue progress for this request?')">
                                     @csrf
                                     <x-buttons.action-button text="Continue" color="yellow" />
                                 </form>
-                            @endcan
-                        @elseif ($request->status === 'in progress')
-                            @can('request.resolve')
+                            @elseif ($request->status === 'in progress')
                                 <x-buttons.action-button text="Confirm" color="blue"
                                     href="{{ route('requests.resolve', $request->id) }}"
                                     onclick="showFullScreenLoader();" />
-                            @endcan
-                        @elseif ($request->status === 'resolved')
-                            @can('request.closed')
+                            @elseif ($request->status === 'resolved')
                                 <form method="POST" action="{{ route('requests.complete', $request->id) }}"
                                     onsubmit="return confirmAndLoad('Mark this request as completed?')">
                                     @csrf
                                     <x-buttons.action-button text="Closed" color="red" />
                                 </form>
-                            @endcan
+                            @endif
                         @endif
-                    @endif
 
-                    {{-- ROLE: MASTER --}}
-                    @if ($roleName === 'master')
-                        {{-- Aksi sesuai status --}}
-                        @if ($request->status === 'waiting')
-                            <form method="POST" action="{{ route('requests.start', $request->id) }}"
-                                onsubmit="return confirmAndLoad('Start progress for this request?')">
-                                @csrf
-                                <x-buttons.action-button text="Proses" color="blue" />
-                            </form>
-                            {{-- Tampilkan tombol Edit untuk semua request --}}
-                            <x-buttons.action-button text="Edit" color="green"
-                                href="{{ route('requests.edit', $request->id) }}" onclick="showFullScreenLoader();" />
-                        @elseif ($request->status === 'pending')
-                            <form method="POST" action="{{ route('requests.restart', $request->id) }}"
-                                onsubmit="return confirmAndLoad('Continue progress for this request?')">
-                                @csrf
-                                <x-buttons.action-button text="Continue" color="yellow" />
-                            </form>
-                        @elseif ($request->status === 'in progress')
-                            <x-buttons.action-button text="Confirm" color="blue"
-                                href="{{ route('requests.resolve', $request->id) }}"
-                                onclick="showFullScreenLoader();" />
-                        @elseif ($request->status === 'resolved')
-                            <form method="POST" action="{{ route('requests.complete', $request->id) }}"
-                                onsubmit="return confirmAndLoad('Mark this request as completed?')">
-                                @csrf
-                                <x-buttons.action-button text="Closed" color="red" />
-                            </form>
-                        @endif
-                    @endif
-
-                    {{-- Tombol DETAIL selalu muncul --}}
-                    <x-buttons.action-button text="Detail" color="purple"
-                        href="{{ route('requests.show', $request->id) }}" onclick="showFullScreenLoader();" />
-                </div>
-            </td>
-        </tr>
-    @endforeach
+                        {{-- Tombol DETAIL selalu muncul --}}
+                        <x-buttons.action-button text="Detail" color="purple"
+                            href="{{ route('requests.show', $request->id) }}" onclick="showFullScreenLoader();" />
+                    </div>
+                </td>
+            </tr>
+        @endforeach
+    @endif
 </tbody>

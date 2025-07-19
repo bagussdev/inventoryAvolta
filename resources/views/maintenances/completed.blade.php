@@ -62,7 +62,8 @@
                         <tbody
                             class="list whitespace-nowrap bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
                             @forelse ($maintenances as $maintenance)
-                                <tr>
+                                <tr
+                                    class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">
                                         <a href="{{ route('maintenances.show', $maintenance->id) }}"
@@ -121,7 +122,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-4 text-xs">No maintenance data found.</td>
+                                    <td colspan="11" class="text-center py-4 text-xs">No incident data found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

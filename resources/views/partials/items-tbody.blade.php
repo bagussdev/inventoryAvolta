@@ -48,7 +48,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="8" class="text-center py-4 text-xs">Tidak ada Item</td>
+            <td colspan="8" class="text-center py-4 text-xs">No items found</td>
         </tr>
     @endforelse
 </tbody>

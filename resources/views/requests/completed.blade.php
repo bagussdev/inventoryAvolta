@@ -50,7 +50,7 @@
                     </tr>
                 </thead>
                 <tbody class="list whitespace-nowrap">
-                    @foreach ($requests as $request)
+                    @forelse ($requests as $request)
                         <tr
                             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                             <td class="px-5 py-4 md:px-6 md:py-5 no">{{ $loop->iteration }}</td>
@@ -94,7 +94,13 @@
                                 </div>
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr class="text-center">
+                            <td colspan="11" class="py-6 text-gray-500 dark:text-gray-400 text-sm">
+                                No request completed data available.
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>

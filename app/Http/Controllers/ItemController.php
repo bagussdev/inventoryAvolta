@@ -170,7 +170,7 @@ class ItemController extends Controller
         $totalOut = $history->where('type', 'out')->sum('qty');
         $totalStock = $totalIn - $totalOut;
 
-        return view('inventoryItems.show', compact('item', 'history', 'totalIn', 'totalOut', 'totalStock'));
+        return view('inventoryitems.show', compact('item', 'history', 'totalIn', 'totalOut', 'totalStock'));
     }
     public function create()
     {
