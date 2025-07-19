@@ -9,6 +9,7 @@ use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Auth;
 
 class UserDataController extends Controller
 {
@@ -177,6 +178,16 @@ class UserDataController extends Controller
 
     public function destroy(string $id)
     {
-        //
+        $this->authorize('managementuser.delete');
+
+        $user = User::findOrFail($id);
+
+        if (Auth::id() === $user->id) {
+            return redirect()->route('users.index')->with('error', 'Kamu tidak bisa menghapus akun sendiri.');
+        }
+
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', 'User berhasil dihapus.');
     }
 }

@@ -44,6 +44,12 @@
                             <x-buttons.action-button text="Active" color="purple" />
                         </form>
                     @endif
+                    <form action="{{ route('users.destroy', $user->id) }}" method="POST"
+                        onsubmit="return confirm('Are you sure to delete user?')">
+                        @csrf
+                        @method('DELETE')
+                        <x-buttons.action-button text="Delete" color="red" />
+                    </form>
                     <a href="{{ route('users.edit', $user->id) }}" onclick="showFullScreenLoader();">
                         <x-buttons.action-button text="Edit" color="blue" />
                     </a>
