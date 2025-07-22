@@ -272,6 +272,16 @@
                     <span class="ms-3">Settings</span>
                 </a>
             </li>
+            <li>
+                <a href="{{ asset('assets/User-Guide-and-UAT-Support-Portal-Avolta-v1.0.pdf') }}" target="_blank"
+                    class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+
+                    {{-- SVG icon buku --}}
+                    {!! view('components.icons.user-guide-icon')->render() !!}
+
+                    <span class="ms-3">User Guide</span>
+                </a>
+            </li>
 
             {{-- Logout --}}
             <li>
