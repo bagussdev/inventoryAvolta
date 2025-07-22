@@ -264,14 +264,6 @@
                     </a>
                 </li>
             @endcan
-            {{-- Settings --}}
-            <li>
-                <a href="{{ route('profile.edit') }}" onclick="showFullScreenLoader();"
-                    class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
-                    {!! view('components.icons.settings-icon')->render() !!}
-                    <span class="ms-3">Settings</span>
-                </a>
-            </li>
             <li>
                 <a href="{{ asset('assets/User-Guide-and-UAT-Support-Portal-Avolta-v1.0.pdf') }}" target="_blank"
                     class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
@@ -282,7 +274,14 @@
                     <span class="ms-3">User Guide</span>
                 </a>
             </li>
-
+            {{-- Settings --}}
+            <li>
+                <a href="{{ route('profile.edit') }}" onclick="showFullScreenLoader();"
+                    class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    {!! view('components.icons.settings-icon')->render() !!}
+                    <span class="ms-3">Settings</span>
+                </a>
+            </li>
             {{-- Logout --}}
             <li>
                 <form method="POST" action="{{ route('logout') }}"
