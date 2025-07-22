@@ -39,7 +39,9 @@ class NotificationPreferenceController extends Controller
         'restart_request' => 'Restart Request',
         'pending_request' => 'Pending Request',
         'resolve_request' => 'Completed Request',
-        'update_sparepart_request' => 'Update Request Spareparts'
+        'update_sparepart_request' => 'Update Request Spareparts',
+        'login' => 'User Login',
+        'logout' => 'User Logout'
         // Tambahkan jenis notifikasi lainnya di sini
     ];
 

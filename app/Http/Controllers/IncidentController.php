@@ -575,7 +575,7 @@ class IncidentController extends Controller
             $user = Auth::user();
 
             $item = $incident->item?->name ?? ($incident->item_description ?: '-');
-            $location = $incident->location->name ?? '-';
+            $location = $incident->store->name ?? '-';
 
             $title = 'New Incident Reported';
             $message = "New incident <b>{$incident->unique_id}</b> has been reported by <b>{$user->name}</b> for item <b>{$item}</b> at <b>{$location}</b>.";
