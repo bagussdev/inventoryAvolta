@@ -47,10 +47,19 @@
                         {{-- Item Problem --}}
                         <div>
                             <label class="block font-medium mb-1">Item Problem</label>
-                            <input type="text" readonly
-                                value="{{ $incident->item->name ?? '-' }} ({{ $incident->item->model ?? '-' }}) - {{ $incident->item->brand ?? '-' }}"
-                                class="w-full rounded-md border-gray-300 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            @if ($incident->item)
+                                <input type="text" readonly
+                                    value="{{ $incident->item->name ?? '-' }} ({{ $incident->item->model ?? '-' }}) - {{ $incident->item->brand ?? '-' }}"
+                                    class="w-full rounded-md border-gray-300 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            @elseif (!empty($incident->item_description))
+                                <input type="text" disabled value="{{ $incident->item_description }}"
+                                    class="w-full rounded-md border-gray-300 bg-gray-100 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            @else
+                                <input type="text" disabled value="No item data available"
+                                    class="w-full rounded-md border-red-300 bg-red-100 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            @endif
                         </div>
+
                         <label class="block font-medium mt-4 mb-1">Upload New Attachment (optional)</label>
                         <input type="file" name="attachment_user" id="attachmentPreviewInput"
                             accept="image/*,video/*"
