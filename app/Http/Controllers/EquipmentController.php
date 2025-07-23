@@ -238,6 +238,8 @@ class EquipmentController extends Controller
             $equipment->status = 'available';
         } elseif ($newStore->name === 'Service Center') {
             $equipment->status = 'maintenance';
+        } elseif ($newStore->name === 'Scrap Center') {
+            $equipment->status = 'broken';
         }
 
         // Simpan migrasi
@@ -252,17 +254,20 @@ class EquipmentController extends Controller
 
         $equipment->save();
 
-        if ($newStore->name === 'Service Center' || ($newStore->name === 'Storage Center' && $newStore->type === 'Warehouse')) {
+        if (
+            $newStore->name === 'Service Center' ||
+            ($newStore->name === 'Storage Center' && $newStore->type === 'Warehouse') ||
+            $newStore->name === 'Scrap Center'
+        ) {
+            $activeMaintenances = Maintenance::where('equipment_id', $equipment->id)
+                ->whereNotIn('status', ['completed', 'cancelled'])
+                ->get();
 
-            $activeMaintenance = Maintenance::where('equipment_id', $equipment->id)
-                ->where('status', 'not due')
-                ->first();
-
-            if ($activeMaintenance) {
-                $activeMaintenance->status = 'cancelled';
-                $activeMaintenance->notes = 'Maintenance cancelled due to equipment migration to ' . $newStore->name . ' from ' . ($currentStore ? $currentStore->name : 'Unknown Location') . '.';
-                $activeMaintenance->confirmby = Auth::id();
-                $activeMaintenance->save();
+            foreach ($activeMaintenances as $maintenance) {
+                $maintenance->status = 'cancelled';
+                $maintenance->notes = 'Maintenance cancelled due to equipment migration to ' . $newStore->name . ' from ' . ($currentStore?->name ?? 'Unknown Location') . '.';
+                $maintenance->confirmby = Auth::id();
+                $maintenance->save();
             }
         } elseif ($newStore->type === 'Store') {
             $isSameTypeStoreMigration = $currentStore && $currentStore->type === 'Store' && $newStore->type === 'Store';

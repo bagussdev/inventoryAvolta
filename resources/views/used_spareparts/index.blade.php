@@ -13,12 +13,12 @@
                     onsubmit="showFullScreenLoader();" class="flex gap-2 items-center">
 
                     <x-date-filter-dropdown :action="route('sparepartused.index')" :startDate="request('start_date')" :endDate="request('end_date')" formId="filterForm" />
-
-                    <a href="{{ route('sparepartused.export', array_merge(request()->query(), ['export' => 1])) }}"
-                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
-                        Excel
-                    </a>
-
+                    @can('exportexcel')
+                        <a href="{{ route('sparepartused.export', array_merge(request()->query(), ['export' => 1])) }}"
+                            class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
+                            Excel
+                        </a>
+                    @endcan
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by item..."
                         class="text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 w-36 sm:w-44" />
                     <input type="hidden" name="per_page" value="{{ $perPage ?? 5 }}">

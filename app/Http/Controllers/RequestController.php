@@ -459,6 +459,7 @@ class RequestController extends Controller
 
         $request->update([
             'status' => 'in progress',
+            'pic_staff' => $user->id
         ]);
 
         $item = $request->item_request;

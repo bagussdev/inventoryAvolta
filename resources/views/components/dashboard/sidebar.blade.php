@@ -183,7 +183,7 @@
                     class="{{ request()->routeIs('incidents.*', 'requests.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} flex items-center w-full p-2 rounded-lg group justify-between text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700">
                     <span class="flex items-center">
                         {!! view('components.icons.rnq-icon')->render() !!}
-                        <span class="ms-3">Incident & Request</span>
+                        <span class="ms-3">Incident</span>
                     </span>
                     <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
@@ -198,14 +198,16 @@
                             onclick="showFullScreenLoader();"
                             class="{{ request()->routeIs('incidents.completed') || request()->routeIs('incidents.showCompletedDetail') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">Completed
                             Incident</a></li>
-                    <li><a href="{{ route('requests.index') }}" onclick="showFullScreenLoader();"
-                            onclick="showFullScreenLoader();"
-                            class="{{ request()->routeIs('requests.*') && !request()->routeIs('requests.completed') && !request()->routeIs('requests.showCompletedDetail') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">Request</a>
-                    </li>
-                    <li><a href="{{ route('requests.completed') }}" onclick="showFullScreenLoader();"
-                            onclick="showFullScreenLoader();"
-                            class="{{ request()->routeIs('requests.completed') || request()->routeIs('requests.showCompletedDetail') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">Completed
-                            Request</a></li>
+                    @can('requestmenu')
+                        <li><a href="{{ route('requests.index') }}" onclick="showFullScreenLoader();"
+                                onclick="showFullScreenLoader();"
+                                class="{{ request()->routeIs('requests.*') && !request()->routeIs('requests.completed') && !request()->routeIs('requests.showCompletedDetail') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">Request</a>
+                        </li>
+                        <li><a href="{{ route('requests.completed') }}" onclick="showFullScreenLoader();"
+                                onclick="showFullScreenLoader();"
+                                class="{{ request()->routeIs('requests.completed') || request()->routeIs('requests.showCompletedDetail') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">Completed
+                                Request</a></li>
+                    @endcan
                 </ul>
             </li>
             @can('outletlistmenu')

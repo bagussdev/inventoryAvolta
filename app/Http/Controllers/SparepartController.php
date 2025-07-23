@@ -220,7 +220,7 @@ class SparepartController extends Controller
                     'type' => 'in',
                     'qty' => $trx->qty,
                     'note' => $trx->notes ?? '-',
-                    'reference' => 'TRX' . str_pad($trx->id, 4, '0', STR_PAD_LEFT),
+                    'reference' => 'TRX' . str_pad($trx->id, 5, '0', STR_PAD_LEFT),
                     'ref_type' => 'transaction',
                     'ref_id' => $trx->id,
                 ];
@@ -241,7 +241,7 @@ class SparepartController extends Controller
                 if ($used->maintenance_id) {
                     $refType = 'maintenance';
                     $refId = $used->maintenance_id;
-                    $reference = 'MNT' . str_pad($refId, 4, '0', STR_PAD_LEFT);
+                    $reference = 'MNT' . str_pad($refId, 5, '0', STR_PAD_LEFT);
                 } elseif ($used->incident_id) {
                     $refType = 'incident';
                     $refId = $used->incident_id;

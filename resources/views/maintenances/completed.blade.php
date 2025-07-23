@@ -13,13 +13,13 @@
                     class="flex gap-2 w-full sm:w-auto" onsubmit="showFullScreenLoader();">
                     {{-- PENGGUNAAN KOMPONEN DATE FILTER DROPDOWN DI SINI --}}
                     <x-date-filter-dropdown :action="route('maintenances.completed')" :startDate="request('start_date')" :endDate="request('end_date')" formId="filterForm" />
-
-                    {{-- Export to Excel Button --}}
-                    <a href="{{ route('maintenances.completed.export', array_merge(request()->query(), ['export' => 1])) }}"
-                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
-                        Excel
-                    </a>
-
+                    @can('exportexcel')
+                        {{-- Export to Excel Button --}}
+                        <a href="{{ route('maintenances.completed.export', array_merge(request()->query(), ['export' => 1])) }}"
+                            class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
+                            Excel
+                        </a>
+                    @endcan
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search..."
                         class="text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 w-full sm:w-44" />
                     <input type="hidden" name="per_page" value="{{ $perPage ?? 5 }}">
@@ -62,7 +62,8 @@
                         <tbody
                             class="list whitespace-nowrap bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-900">
                             @forelse ($maintenances as $maintenance)
-                                <tr class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
+                                <tr
+                                    class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">
                                         <a href="{{ route('maintenances.show', $maintenance->id) }}"

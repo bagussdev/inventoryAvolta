@@ -707,6 +707,7 @@ class IncidentController extends Controller
 
         $incident->update([
             'status' => 'in progress',
+            'pic_staff' => $user->id
         ]);
 
         $user = Auth::user();

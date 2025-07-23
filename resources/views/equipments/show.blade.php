@@ -39,7 +39,8 @@
                         ? '<a href="' .
                             route('transactions.show', $equipment->transaction->id) .
                             '" class="text-purple-600 hover:underline" target="_blank">' .
-                            $equipment->transaction->id .
+                            'TRX' .
+                            str_pad($equipment->transaction->id, 5, '0', STR_PAD_LEFT) .
                             '</a>'
                         : '-',
                     'Location' => $equipment->store->name ?? '-',

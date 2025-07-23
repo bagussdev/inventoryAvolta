@@ -28,9 +28,9 @@
                 'Model' => $sparepart->item->model ?? '-',
                 'Qty' => $sparepart->qty ?? '-',
                 'Status' =>
-                    $sparepart->qty > 5
+                    $sparepart->status === 'available'
                         ? '<span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-green-100 text-green-800">Available</span>'
-                        : ($sparepart->qty < 5
+                        : ($sparepart->status === 'low'
                             ? '<span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-orange-100 text-orange-800">Low</span>'
                             : '<span class="inline-block px-2 py-1 text-xs font-semibold rounded bg-red-100 text-red-800">Empty</span>'),
             ];

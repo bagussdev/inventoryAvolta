@@ -11,11 +11,12 @@
                 <form id="filterForm" method="GET" action="{{ route('requests.completed') }}"
                     class="flex gap-2 items-center" onsubmit="showFullScreenLoader();">
                     <x-date-filter-dropdown :action="route('requests.completed')" :startDate="request('start_date')" :endDate="request('end_date')" formId="filterForm" />
-
-                    <a href="{{ route('requests.exportCompleted', array_merge(request()->query(), ['export' => 1])) }}"
-                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
-                        Excel
-                    </a>
+                    @can('exportexcel')
+                        <a href="{{ route('requests.exportCompleted', array_merge(request()->query(), ['export' => 1])) }}"
+                            class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
+                            Excel
+                        </a>
+                    @endcan
 
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search..."
                         class="text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 w-full sm:w-44" />
@@ -97,7 +98,7 @@
                     @empty
                         <tr class="text-center">
                             <td colspan="11" class="py-6 text-gray-500 dark:text-gray-400 text-sm">
-                            No request completed data available.
+                                No request completed data available.
                             </td>
                         </tr>
                     @endforelse

@@ -14,10 +14,12 @@
 
                     {{-- PENGGUNAAN KOMPONEN DATE FILTER DROPDOWN DI SINI --}}
                     <x-date-filter-dropdown :action="route('maintenances.index')" :startDate="request('start_date')" :endDate="request('end_date')" formId="filterForm" />
-                    <a href="{{ route('maintenances.export', array_merge(request()->query(), ['export' => 1])) }}"
-                        class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
-                        Excel
-                    </a>
+                    @can('exportexcel')
+                        <a href="{{ route('maintenances.export', array_merge(request()->query(), ['export' => 1])) }}"
+                            class="text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 text-white bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 font-medium rounded-md focus:outline-none dark:bg-gray-500 dark:hover:bg-gray-600 dark:focus:ring-gray-700 text-center">
+                            Excel
+                        </a>
+                    @endcan
                     {{-- Input search yang sudah ada --}}
                     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search..."
                         class="text-xs sm:text-sm px-2 py-1.5 sm:px-3 sm:py-2 rounded-md border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-purple-500 w-full sm:w-44" />

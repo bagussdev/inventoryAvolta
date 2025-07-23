@@ -51,7 +51,7 @@
             <td class="px-4 py-2 md:px-6 md:py-3">
                 <div class="flex flex-row items-center justify-center gap-1">
                     @can('equipments.migrate')
-                        <x-buttons.action-button text="Migrate" color="green"
+                        <x-buttons.action-button text="Transfer" color="green"
                             href="{{ route('equipments.migrate.form', $equipment->id) }}"
                             onclick="showFullScreenLoader()" />
                     @endcan
