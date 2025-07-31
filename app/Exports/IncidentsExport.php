@@ -2,62 +2,71 @@
 
 namespace App\Exports;
 
+use App\Models\Incident;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use App\Models\Incident;
-use Carbon\Carbon;
 
 class IncidentsExport implements FromCollection, WithHeadings, WithMapping
 {
     protected $incidents;
+    protected $index = 0;
 
     public function __construct($incidents)
     {
         $this->incidents = $incidents;
     }
 
-    /**
-     * @return \Illuminate\Support\Collection
-     */
     public function collection()
     {
         return $this->incidents;
     }
 
-    /**
-     * @var Incident $incident
-     */
     public function map($incident): array
     {
+        $this->index++;
+
+        // Format item problem sesuai blade
+        $itemName = optional(optional($incident->equipment)->item)->name;
+        $alias = optional($incident->equipment)->alias;
+        $description = $incident->item_description;
+
+        $itemProblem = '-';
+        if ($itemName) {
+            $itemProblem = $itemName;
+            if ($alias || $description) {
+                $itemProblem .= ' - ' . ($alias ?? $description);
+            }
+        } elseif ($alias || $description) {
+            $itemProblem = $alias ?? $description;
+        }
+
         return [
-            $incident->id,
-            $incident->equipment->item->name ?? '-',
-            $incident->equipment->item->model ?? '-',
-            $incident->equipment->item->brand ?? '-',
-            $incident->equipment->store->name ?? '-',
+            $this->index,
+            $incident->unique_id ?? '-',
             $incident->user->name ?? '-',
+            $incident->department->name ?? '-',
+            ucwords(strtolower($itemProblem)),
+            $incident->store->name ?? '-',
             Carbon::parse($incident->created_at)->format('d M Y'),
+            $incident->picUser->name ?? '-',
             ucfirst($incident->status),
-            $incident->notes ?? '-',
         ];
     }
 
-    /**
-     * @return array
-     */
     public function headings(): array
     {
         return [
+            'No',
             'Incident Id',
-            'Equipment',
-            'Model',
-            'Brand',
-            'Location',
             'Reported By',
-            'Reported Date',
+            'Report To',
+            'Item Problem',
+            'Location',
+            'Start Date',
+            'PIC Staff',
             'Status',
-            'Notes',
         ];
     }
 }

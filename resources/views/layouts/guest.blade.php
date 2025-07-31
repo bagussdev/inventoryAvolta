@@ -21,12 +21,8 @@
 <body class="font-sans text-gray-900 antialiased">
     <x-loading-overlay />
     <div class="p-5 min-h-screen flex items-center justify-center bg-[#A463F3] dark:bg-gray-900 relative">
-        <img
-            src="{{ asset('assets/shape.png') }}"
-            alt="Shape"
-            loading="lazy"
-            class="absolute inset-0 w-full h-full object-cover max-w-full max-h-full z-0 pointer-events-none"
-        />
+        <img src="{{ asset('assets/shape.png') }}" alt="Shape" loading="lazy"
+            class="absolute inset-0 w-full h-full object-cover max-w-full max-h-full z-0 pointer-events-none" />
         <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg z-10">
             {{ $slot }}
         </div>

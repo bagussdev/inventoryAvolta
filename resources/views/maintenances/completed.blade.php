@@ -51,9 +51,10 @@
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Date</th>
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="freq">Frequency
                                 </th>
-                                <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Resolved At
+                                <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="resolve">Resolved
+                                    At
                                 </th>
-                                <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">PIC Staff
+                                <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="pic">PIC Staff
                                 </th>
                                 <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
                                 <th class="px-4 py-2 md:px-6 md:py-3">Actions</th>
@@ -67,7 +68,7 @@
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 no">
                                         <a href="{{ route('maintenances.show', $maintenance->id) }}"
-                                            class="text-blue-600 hover:underline">
+                                            class="text-purple-600 hover:underline">
                                             MNT-000{{ ucfirst(strtolower($maintenance->id ?? '-')) }}
                                         </a>
                                     </td>
@@ -91,11 +92,24 @@
                                     <td class="px-4 py-2 md:px-6 md:py-3 freq">{{ ucfirst($maintenance->frequensi) }}
                                     </td>
 
-                                    <td class="px-4 py-2 md:px-6 md:py-3 date">
+                                    <td class="px-4 py-2 md:px-6 md:py-3 resolve">
                                         {{ \Carbon\Carbon::parse($maintenance->resolved_at)->format('d M Y H:i') }}
                                     </td>
-                                    <td class="px-4 py-2 md:px-6 md:py-3 date">
-                                        {{ $maintenance->staff->name }}
+                                    <td class="px-4 py-2 md:px-6 md:py-3 pic">
+                                        @if ($maintenance->staff)
+                                            <button
+                                                onclick="showUserModal({{ json_encode([
+                                                    'name' => $maintenance->staff->name ?? '-',
+                                                    'location' => optional($maintenance->staff->location)->name ?? '-',
+                                                    'email' => $maintenance->staff->email ?? '-',
+                                                    'phone' => $maintenance->staff->no_telfon ?? '',
+                                                ]) }})"
+                                                class="text-purple-600 hover:underline">
+                                                {{ $maintenance->staff->name }}
+                                            </button>
+                                        @else
+                                            -
+                                        @endif
                                     </td>
                                     <td class="px-4 py-2 md:px-6 md:py-3 status">
                                         @php
@@ -132,12 +146,51 @@
         </div>
         <x-per-page-selector :items="$maintenances" route="maintenances.completed" :perPage="$perPage" :search="$search"
             :showPagination="true" />
-
+        @include('components.modal-user')
         @push('scripts')
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
             <script>
                 const maintenanceList = new List('maintenance-list', {
-                    valueNames: ['no', 'name', 'model', 'store', 'date', 'freq', 'status']
+                    valueNames: ['no', 'name', 'model', 'store', 'date', 'freq', 'status', 'resolve', 'pic']
                 });
+            </script>
+            <script>
+                function showUserModal(user) {
+                    document.getElementById('detailName').textContent = user.name || '-';
+                    document.getElementById('detailLocation').textContent = user.location || '-';
+
+                    const emailLink = document.getElementById('detailEmail');
+                    if (user.email) {
+                        emailLink.textContent = user.email;
+                        emailLink.href = 'mailto:' + user.email;
+                    } else {
+                        emailLink.textContent = '-';
+                        emailLink.href = '#';
+                    }
+
+                    const phoneLink = document.getElementById('detailPhone');
+                    if (user.phone) {
+                        phoneLink.textContent = user.phone;
+                        phoneLink.href = 'https://wa.me/' + user.phone.replace(/^0/, '62');
+                        phoneLink.setAttribute('target', '_blank');
+                        phoneLink.setAttribute('rel', 'noopener noreferrer');
+                    } else {
+                        phoneLink.textContent = '-';
+                        phoneLink.href = '#';
+                    }
+
+                    document.getElementById('userDetailModal').classList.remove('hidden');
+                }
+
+                function closeUserModal() {
+                    document.getElementById('userDetailModal').classList.add('hidden');
+                }
+
+                function handleOutsideClick(event) {
+                    if (event.target.id === 'userDetailModal') {
+                        closeUserModal();
+                    }
+                }
             </script>
         @endpush
 

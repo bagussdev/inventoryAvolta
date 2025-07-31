@@ -23,15 +23,24 @@
             <div class="flex justify-between items-center mb-3">
                 <x-input-label for="password" :value="__('Password')" />
                 @if (Route::has('password.request'))
-                    <a class="text-sm font-bold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
+                    <a class="text-sm font-bold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
                         href="{{ route('password.request') }}">
                         {{ __('Forget Password?') }}
                     </a>
                 @endif
             </div>
 
-            <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required
-                autocomplete="current-password" />
+            <div class="flex items-center">
+                <x-text-input id="password" class="w-full" type="password" name="password" required
+                    autocomplete="current-password" />
+
+                <button type="button" onclick="togglePassword()"
+                    class="ml-3 text-gray-600 hover:text-gray-900 focus:outline-none"
+                    aria-label="Toggle password visibility">
+                    <x-icons.eyeopen-icon id="eyeOpen" class="w-7 h-7" />
+                    <x-icons.eyeclosed-icon id="eyeClosed" class="w-7 h-7 hidden" />
+                </button>
+            </div>
 
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
@@ -58,4 +67,18 @@
                     class="text-[#5A8CFF] underline">Register Account</a></p> --}}
         </div>
     </form>
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const eyeOpen = document.getElementById('eyeOpen');
+            const eyeClosed = document.getElementById('eyeClosed');
+
+            const isVisible = input.type === 'text';
+            input.type = isVisible ? 'password' : 'text';
+
+            eyeOpen.classList.toggle('hidden', !isVisible);
+            eyeClosed.classList.toggle('hidden', isVisible);
+        }
+    </script>
+
 </x-guest-layout>

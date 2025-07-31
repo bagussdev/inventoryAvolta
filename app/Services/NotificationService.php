@@ -45,4 +45,16 @@ class NotificationService
             ]);
         }
     }
+    public static function getTargets(string $type, ?int $departmentId = null): array
+    {
+        // Khusus kirim ke role Master (role_id = 1)
+        return \App\Models\User::where('role_id', 1)->get()->map(function ($user) {
+            return [
+                'user_id'       => $user->id,
+                'role_id'       => $user->role_id,
+                'department_id' => $user->department_id,
+                'store_id'      => $user->store_id,
+            ];
+        })->toArray();
+    }
 }

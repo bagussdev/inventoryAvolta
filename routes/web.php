@@ -19,6 +19,7 @@ use App\Http\Controllers\NotificationPreferenceController;
 use App\Models\Incident;
 use App\Models\UsedSparepart;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 // Redirect root to login
 Route::get('/', function () {
@@ -164,6 +165,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
 });
+Route::post('/force-logout', function () {
+    Auth::logout();
+    session()->invalidate();
+    session()->regenerateToken();
+    return response()->json(['status' => 'logged_out']);
+})->name('force.logout');
 
 // Route::fallback(function () {
 //     abort(404);

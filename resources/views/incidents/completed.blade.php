@@ -42,9 +42,11 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="id">Incident Id</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="report">Reported By</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="department">Report To</th>
-                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Equipment</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Item Problem
+                        </th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="location">Location</th>
-                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Date</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Start Date</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="resolve">Resolve Date</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="staff">PIC Staff</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
                         <th class="px-4 py-2 md:px-6 md:py-3">Action</th>
@@ -59,10 +61,25 @@
                             </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 id">
                                 <a href="{{ route('incidents.show', $incident->id) }}"
-                                    class="text-blue-600 hover:underline">{{ $incident->unique_id ?? '-' }}
+                                    class="text-purple-600 hover:underline">{{ $incident->unique_id ?? '-' }}
                                 </a>
                             </td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 report">
+                                @if ($incident->user)
+                                    <button
+                                        onclick="showUserModal({{ json_encode([
+                                            'name' => $incident->user->name ?? '-',
+                                            'location' => optional($incident->user->location)->name ?? '-',
+                                            'email' => $incident->user->email ?? '-',
+                                            'phone' => $incident->user->no_telfon ?? '',
+                                        ]) }})"
+                                        class="text-purple-600 hover:underline">
+                                        {{ $incident->user->name ?? '-' }}
+                                    </button>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}
                             </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 equipment">
@@ -82,7 +99,24 @@
                             </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 date">
                                 {{ \Carbon\Carbon::parse($incident->created_at)->format('d M Y') }}</td>
-                            <td class="px-4 py-2 md:px-6 md:py-3 staff">{{ $incident->picUser->name ?? '-' }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 resolve">
+                                {{ \Carbon\Carbon::parse($incident->resolved_at)->format('d M Y') }}</td>
+                            <td class="px-4 py-2 md:px-6 md:py-3 staff">
+                                @if ($incident->picUser)
+                                    <button
+                                        onclick="showUserModal({{ json_encode([
+                                            'name' => $incident->picUser->name ?? '-',
+                                            'location' => optional($incident->picUser->location)->name ?? '-',
+                                            'email' => $incident->picUser->email ?? '-',
+                                            'phone' => $incident->picUser->no_telfon ?? '',
+                                        ]) }})"
+                                        class="text-purple-600 hover:underline">
+                                        {{ $incident->picUser->name }}
+                                    </button>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="px-4 py-2 md:px-6 md:py-3 status">
                                 @php
                                     $status = strtolower($incident->status);
@@ -120,12 +154,54 @@
 
         <x-per-page-selector :items="$incidents" route="incidents.completed" :perPage="$perPage" :search="$search"
             :showPagination="true" />
-
+        @include('components.modal-user')
         @push('scripts')
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
             <script>
                 const incidentList = new List('incident-list', {
-                    valueNames: ['id', 'no', 'department', 'location', 'report', 'date', 'status', 'equipment', 'staff']
+                    valueNames: ['no', 'id', 'report', 'department', 'equipment', 'location', 'date', 'staff', 'status',
+                        'resolve'
+                    ]
                 });
+            </script>
+
+            <script>
+                function showUserModal(user) {
+                    document.getElementById('detailName').textContent = user.name || '-';
+                    document.getElementById('detailLocation').textContent = user.location || '-';
+
+                    const emailLink = document.getElementById('detailEmail');
+                    if (user.email) {
+                        emailLink.textContent = user.email;
+                        emailLink.href = 'mailto:' + user.email;
+                    } else {
+                        emailLink.textContent = '-';
+                        emailLink.href = '#';
+                    }
+
+                    const phoneLink = document.getElementById('detailPhone');
+                    if (user.phone) {
+                        phoneLink.textContent = user.phone;
+                        phoneLink.href = 'https://wa.me/' + user.phone.replace(/^0/, '62');
+                        phoneLink.setAttribute('target', '_blank');
+                        phoneLink.setAttribute('rel', 'noopener noreferrer');
+                    } else {
+                        phoneLink.textContent = '-';
+                        phoneLink.href = '#';
+                    }
+
+                    document.getElementById('userDetailModal').classList.remove('hidden');
+                }
+
+                function closeUserModal() {
+                    document.getElementById('userDetailModal').classList.add('hidden');
+                }
+
+                function handleOutsideClick(event) {
+                    if (event.target.id === 'userDetailModal') {
+                        closeUserModal();
+                    }
+                }
             </script>
         @endpush
 

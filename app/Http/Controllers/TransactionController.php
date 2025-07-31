@@ -44,7 +44,10 @@ class TransactionController extends Controller
                     ->orWhereHas('item', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%")
                             ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('category', 'like', "%{$search}%")
                             ->orWhere('model', 'like', "%{$search}%");
+                    })->orWhereHas('user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
                     });
             });
         }
@@ -66,7 +69,9 @@ class TransactionController extends Controller
         }
 
         // Pagination or all
-        if ($perPage === 'all') {
+        $isFiltered = $search || ($startDate && $endDate);
+
+        if ($perPage === 'all' || $isFiltered) {
             $transactions = $transactionsQuery->orderBy('created_at', 'desc')->get();
         } else {
             $transactions = $transactionsQuery
@@ -75,7 +80,7 @@ class TransactionController extends Controller
                 ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
         }
 
-        return view('transactions.index', compact('transactions', 'search', 'perPage', 'startDate', 'endDate'));
+        return view('transactions.index', compact('transactions', 'search', 'perPage', 'startDate', 'endDate', 'isFiltered'));
     }
 
     public function tbody(Request $request)
@@ -332,7 +337,7 @@ class TransactionController extends Controller
         if ($validated['type'] === 'equipment') {
             $existingEquipment = Equipment::where('serial_number', $validated['serial_number'])->first();
             if ($existingEquipment) {
-               return back()->with('error', 'This Serial Number has already been registered to another equipment.')->withInput();
+                return back()->with('error', 'This Serial Number has already been registered to another equipment.')->withInput();
             }
         }
 

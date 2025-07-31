@@ -11,6 +11,7 @@ use Carbon\Carbon;
 class MaintenancesCompletedExport implements FromCollection, WithHeadings, WithMapping
 {
     protected $maintenances;
+    protected $index = 0;
 
     public function __construct($maintenances)
     {
@@ -30,16 +31,19 @@ class MaintenancesCompletedExport implements FromCollection, WithHeadings, WithM
      */
     public function map($maintenance): array
     {
+        $this->index++;
         return [
-            $maintenance->id,
+            $this->index,
+            'MNT-' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT),
             $maintenance->equipment->item->name ?? '-',
             $maintenance->equipment->item->model ?? '-',
             $maintenance->equipment->item->brand ?? '-',
             $maintenance->equipment->store->name ?? '-',
             ucfirst($maintenance->frequensi),
             Carbon::parse($maintenance->maintenance_date)->format('d M Y'),
+            Carbon::parse($maintenance->resolved_at)->format('d M Y'),
+            $maintenance->staff->name ?? '-', // PIC Staff
             ucfirst($maintenance->status),
-            Carbon::parse($maintenance->updated_at)->format('d M Y'), // Resolved At
         ];
     }
 
@@ -49,15 +53,17 @@ class MaintenancesCompletedExport implements FromCollection, WithHeadings, WithM
     public function headings(): array
     {
         return [
-            'Maintenance Id',
+            'No',
+            'Maintenance ID',
             'Equipment',
             'Model',
             'Brand',
             'Location',
             'Frequency',
             'Maintenance Date',
-            'Status',
             'Resolved At',
+            'PIC Staff',
+            'Status',
         ];
     }
 }

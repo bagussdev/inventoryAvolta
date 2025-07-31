@@ -48,6 +48,17 @@
                     -
                 @endif
             </td>
+            <td class="px-4 py-2 md:px-6 md:py-3 pic">
+                @if ($used->maintenance_id)
+                    {{ $used->maintenance?->staff?->name ?? '-' }}
+                @elseif ($used->incident_id)
+                    {{ $used->incident?->picUser?->name ?? '-' }}
+                @elseif ($used->request_id)
+                    {{ $used->request?->picUser?->name ?? '-' }}
+                @else
+                    -
+                @endif
+            </td>
             <td class="px-4 py-2 md:px-6 md:py-3 note italic">{{ $used->note ?? '-' }}</td>
         </tr>
     @empty

@@ -10,7 +10,8 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="id">Incident ID</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="report">Reported By</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="department">Report To</th>
-                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Equipment</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="equipment">Item Problem
+                        </th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="location">Location</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Start Date</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="staff">PIC Staff</th>

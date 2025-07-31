@@ -83,21 +83,43 @@ class UserDataController extends Controller
     public function activate($id)
     {
         $this->authorize('usercontrol');
+
+        // Tidak boleh mengaktifkan diri sendiri
+        if (Auth::user()->id == $id) {
+            return redirect()->route('users.index')->with('error', 'Kamu tidak bisa mengaktifkan akun sendiri.');
+        }
+
         $user = User::findOrFail($id);
+
+        if ($user->status === 'Y') {
+            return redirect()->route('users.index')->with('info', 'User sudah aktif.');
+        }
+
         $user->status = 'Y';
         $user->save();
 
-        return redirect()->route('users.index')->with('success', 'User activated successfully.');
+        return redirect()->route('users.index')->with('success', 'User berhasil diaktifkan.');
     }
 
     public function deactivate($id)
     {
         $this->authorize('usercontrol');
+
+        // Tidak boleh menonaktifkan diri sendiri
+        if (Auth::user()->id == $id) {
+            return redirect()->route('users.index')->with('error', 'Kamu tidak bisa menonaktifkan akun sendiri.');
+        }
+
         $user = User::findOrFail($id);
+
+        if ($user->status === 'N') {
+            return redirect()->route('users.index')->with('info', 'User sudah nonaktif.');
+        }
+
         $user->status = 'N';
         $user->save();
 
-        return redirect()->route('users.index')->with('success', 'User deactivated successfully.');
+        return redirect()->route('users.index')->with('success', 'User berhasil dinonaktifkan.');
     }
 
     public function create()

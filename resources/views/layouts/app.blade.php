@@ -42,6 +42,55 @@
         </main>
     </div>
     @stack('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            let idleTime = 0;
+            const maxIdleMinutes = 30;
+
+            function resetIdleTimer() {
+                idleTime = 0;
+            }
+
+            // Reset setiap aktivitas user
+            window.onload = resetIdleTimer;
+            document.onmousemove = resetIdleTimer;
+            document.onkeypress = resetIdleTimer;
+            document.onscroll = resetIdleTimer;
+            document.onclick = resetIdleTimer;
+
+            // Periksa setiap 1 menit (60000 ms)
+            setInterval(() => {
+                idleTime++;
+                if (idleTime >= maxIdleMinutes) {
+                    // Trigger logout ke backend
+                    fetch("{{ route('logout') }}", {
+                            method: "POST",
+                            headers: {
+                                "X-CSRF-TOKEN": document.querySelector('meta[name=\"csrf-token\"]')
+                                    .getAttribute("content"),
+                                "Content-Type": "application/json",
+                                "Accept": "application/json"
+                            },
+                        })
+                        .then(res => res.json())
+                        .then(() => {
+                            Swal.fire({
+                                title: 'Session Berakhir',
+                                text: 'Silakan login ulang.',
+                                icon: 'warning',
+                                confirmButtonText: 'OK',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false
+                            }).then(() => {
+                                window.location.href = "{{ route('login') }}";
+                            });
+                        });
+                }
+            }, 60000); // tiap 1 menit
+        });
+    </script>
+
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js" defer></script>
@@ -51,7 +100,7 @@
     <!-- jQuery (wajib sebelum pakai $ atau select2) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
     <!-- Select2 -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
 
     <script>

@@ -28,15 +28,17 @@ class TransactionsExport implements FromCollection, WithHeadings
     {
         // Map data Eloquent model menjadi format yang siap diekspor ke Excel.
         // Pastikan kolom yang diambil sesuai dengan headings di bawah.
-        return $this->transactions->map(function ($transaction) {
+        return $this->transactions->map(function ($transaction, $index) {
             return [
-                'Transaction ID' => $transaction->id,
+                'No'             => $index + 1,
+                'Transaction ID' => 'TRX-' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT),
                 'Category'       => ucfirst($transaction->type),
                 'Item'           => $transaction->item->name ?? '-',
                 'QTY'            => $transaction->qty,
                 'S/N'            => $transaction->serial_number ?? '-',
                 'Supplier'       => $transaction->supplier,
                 'Date'           => $transaction->created_at->format('d M Y'),
+                'Note'           => $transaction->notes,
                 'Created By'     => $transaction->user->name,
             ];
         });
@@ -50,6 +52,7 @@ class TransactionsExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return [
+            'No',
             'Transaction ID',
             'Category',
             'Item',
@@ -57,6 +60,7 @@ class TransactionsExport implements FromCollection, WithHeadings
             'S/N',
             'Supplier',
             'Date',
+            'Note',
             'Created By',
         ];
     }

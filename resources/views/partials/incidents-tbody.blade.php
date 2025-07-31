@@ -18,11 +18,23 @@
             class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
             <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 id">
-                <a href="{{ route('incidents.show', $incident->id) }}" class="text-blue-600 hover:underline">
+                <a href="{{ route('incidents.show', $incident->id) }}" class="text-purple-600 hover:underline">
                     {{ $incident->unique_id ?? '-' }}
                 </a>
             </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 report">{{ $incident->user->name ?? '-' }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 report">
+                <button
+                    onclick="showUserModal({{ json_encode([
+                        'name' => $incident->user->name ?? '-',
+                        'location' => $incident->user->location->name ?? '-',
+                        'email' => $incident->user->email ?? '-',
+                        'phone' => $incident->user->no_telfon ?? '',
+                    ]) }})"
+                    class="text-purple-600 hover:underline">
+                    {{ $incident->user->name ?? '-' }}
+                </button>
+            </td>
+
             <td class="px-4 py-2 md:px-6 md:py-3 department">{{ $incident->department->name ?? '-' }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 equipment">
@@ -41,7 +53,22 @@
             <td class="px-4 py-2 md:px-6 md:py-3 location">{{ $incident->store->site_code ?? '-' }}</td>
             <td class="px-4 py-2 md:px-6 md:py-3 date">
                 {{ \Carbon\Carbon::parse($incident->created_at)->format('d M Y') }}</td>
-            <td class="px-4 py-2 md:px-6 md:py-3 staff">{{ $incident->picUser->name ?? '-' }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 staff">
+                @if ($incident->picUser)
+                    <button
+                        onclick="showUserModal({{ json_encode([
+                            'name' => $incident->picUser->name ?? '-',
+                            'location' => optional($incident->picUser->location)->name ?? '-',
+                            'email' => $incident->picUser->email ?? '-',
+                            'phone' => $incident->picUser->no_telfon ?? '',
+                        ]) }})"
+                        class="text-purple-600 hover:underline">
+                        {{ $incident->picUser->name ?? '-' }}
+                    </button>
+                @else
+                    -
+                @endif
+            </td>
             <td class="px-4 py-2 md:px-6 md:py-3 status">
                 @php
                     $status = strtolower($incident->status);

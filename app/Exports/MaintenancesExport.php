@@ -5,11 +5,12 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use App\Models\Maintenance; // Import model Maintenance
+use App\Models\Maintenance;
 
 class MaintenancesExport implements FromCollection, WithHeadings, WithMapping
 {
     protected $maintenances;
+    protected $index = 0; // Untuk No urut
 
     public function __construct($maintenances)
     {
@@ -29,8 +30,11 @@ class MaintenancesExport implements FromCollection, WithHeadings, WithMapping
      */
     public function map($maintenance): array
     {
+        $this->index++; // Increment setiap baris
+
         return [
-            $maintenance->id,
+            $this->index, // No
+            'MNT-' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT), // Maintenance ID
             $maintenance->equipment->item->name ?? '-',
             $maintenance->equipment->item->model ?? '-',
             $maintenance->equipment->item->brand ?? '-',
@@ -47,7 +51,8 @@ class MaintenancesExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         return [
-            'Maintenance Id',
+            'No',
+            'Maintenance ID',
             'Equipment',
             'Model',
             'Brand',

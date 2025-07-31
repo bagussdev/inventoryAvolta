@@ -62,7 +62,7 @@
                                 'label' => 'Resolved At',
                                 'value' => \Carbon\Carbon::parse($maintenance->resolved_at)->format('d M Y'),
                             ],
-                            ['label' => 'Confirm By', 'value' => $maintenance->confirm->name ?? 'N/A'],
+                            ['label' => 'Confirm By', 'value' => $maintenance->confirm->name ?? '-'],
                         ];
                     @endphp
 
@@ -150,7 +150,7 @@
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Confirm
                             By</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $maintenance->confirm->name ?? 'N/A' }}</div>
+                            {{ $maintenance->confirm->name ?? '-' }}</div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Status</label>

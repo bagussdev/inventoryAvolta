@@ -12,6 +12,7 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="qty">QTY</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="type">Type</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="reference">Reference</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="pic">PIC</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="note">Note</th>
                     </tr>
                 </thead>
@@ -35,7 +36,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>
         const usedSparepartsList = new List('used-spareparts-list', {
-            valueNames: ['no', 'date', 'item', 'qty', 'type', 'reference', 'note']
+            valueNames: ['no', 'date', 'item', 'qty', 'type', 'reference', 'note', 'pic']
         });
 
         console.log("Polling Used Spareparts loaded...");

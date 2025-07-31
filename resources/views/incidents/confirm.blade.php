@@ -33,7 +33,7 @@
                     @php
                         $mobileFields = [
                             'ID Incident' => $incident->unique_id,
-                            'Item' => $incident->item->name ?? '-',
+                            'Item Problem' => $incident->item->name ?? '-',
                             'Model' => $incident->item->model ?? '-',
                             'Brand' => $incident->item->brand ?? '-',
                             'Location' => $incident->store->name ?? '-',
@@ -81,7 +81,8 @@
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">{{ $incident->unique_id }}</div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item :</label>
+                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item Problem
+                            :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
                             {{ ucwords(
                                 strtolower(
@@ -213,7 +214,7 @@
                         dark:file:bg-gray-700 dark:file:text-gray-200 dark:hover:file:bg-gray-600
                         border border-gray-300 rounded-md shadow-sm"
                         required>
-                    <x-input-error :messages="$errors->get('attachment')" class="mt-2" />    
+                    <x-input-error :messages="$errors->get('attachment')" class="mt-2" />
                 </div>
                 <div id="attachment-preview" class="mt-4 mb-1 flex justify-start items-left">
                     <img id="preview-image"

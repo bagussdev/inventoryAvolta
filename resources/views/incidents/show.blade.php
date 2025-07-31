@@ -45,7 +45,7 @@
                     @php
                         $mobileFields = [
                             'ID Incident' => $incident->unique_id,
-                            'Item' => ucwords(
+                            'Item Problem' => ucwords(
                                 strtolower(
                                     optional(optional($incident->equipment)->item)->name .
                                         (optional($incident->equipment)->item &&
@@ -61,21 +61,79 @@
                             'Model' => $incident->item->model ?? '-',
                             'Brand' => $incident->item->brand ?? '-',
                             'Location' => $incident->store->name ?? '-',
-                            'User Report' => $incident->user->name ?? '-',
+
+                            'User Report' => $incident->user
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->user->name,
+                                        'location' => optional($incident->user->location)->name,
+                                        'email' => $incident->user->email,
+                                        'phone' => $incident->user->no_telfon,
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->user->name) .
+                                    '</a>'
+                                : '-',
+
                             'Department To' => $incident->department->name ?? '-',
-                            'PIC Staff' => $incident->picUser->name ?? '-',
-                            'Resolved By' => $incident->resolve->name ?? '-',
+
+                            'PIC Staff' => $incident->picUser
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->picUser->name,
+                                        'location' => optional($incident->picUser->location)->name,
+                                        'email' => $incident->picUser->email,
+                                        'phone' => $incident->picUser->no_telfon ?? '-',
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->picUser->name) .
+                                    '</a>'
+                                : '-',
+
+                            'Resolved By' => $incident->resolve
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->resolve->name,
+                                        'location' => optional($incident->resolve->location)->name,
+                                        'email' => $incident->resolve->email,
+                                        'phone' => $incident->resolve->no_telfon ?? '-',
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->resolve->name) .
+                                    '</a>'
+                                : '-',
+
                             'Resolved At' => $incident->resolved_at
                                 ? \Carbon\Carbon::parse($incident->resolved_at)->format('d M Y H:i')
                                 : '-',
-                            'Confirm By' => $incident->confirm->name ?? '-',
+
+                            'Confirm By' => $incident->confirm
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->confirm->name,
+                                        'location' => optional($incident->confirm->location)->name,
+                                        'email' => $incident->confirm->email,
+                                        'phone' => $incident->confirm->no_telfon ?? '-',
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->confirm->name) .
+                                    '</a>'
+                                : '-',
                         ];
+
+                        $linkableLabels = ['User Report', 'PIC Staff', 'Resolved By', 'Confirm By'];
                     @endphp
 
                     @foreach ($mobileFields as $label => $value)
                         <div class="flex items-start gap-2">
                             <div class="w-40 font-medium shrink-0">{{ $label }}</div>
-                            <div class="flex-1 break-all">: {{ $value }}</div>
+                            <div class="flex-1 break-all">
+                                : @if (in_array($label, $linkableLabels))
+                                    {!! $value !!}
+                                @else
+                                    {{ $value }}
+                                @endif
+                            </div>
                         </div>
                     @endforeach
 
@@ -99,7 +157,6 @@
                 </div>
             </div>
 
-
             {{-- Versi DESKTOP (grid-col-4, model label + box) --}}
             <div class="hidden md:block">
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -109,7 +166,8 @@
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">{{ $incident->unique_id }}</div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item :</label>
+                        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Item Problem
+                            :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
                             {{ ucwords(
                                 strtolower(
@@ -140,12 +198,29 @@
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
                             {{ $incident->store->name ?? '-' }}</div>
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">User Report
                             :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $incident->user->name ?? '-' }}</div>
+                            @if ($incident->user)
+                                <a href="javascript:void(0);"
+                                    onclick="showUserModal({{ json_encode([
+                                        'name' => $incident->user->name,
+                                        'location' => optional($incident->user->location)->name,
+                                        'email' => $incident->user->email,
+                                        'phone' => $incident->user->no_telfon ?? null,
+                                    ]) }})"
+                                    class="text-purple-600 hover:underline">
+                                    {{ $incident->user->name }}
+                                </a>
+                            @else
+                                -
+                            @endif
+
+                        </div>
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Department To
                             :</label>
@@ -156,14 +231,40 @@
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">PIC Staff
                             :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $incident->picUser->name ?? '-' }}</div>
+                            {!! $incident->picUser
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->picUser->name,
+                                        'location' => optional($incident->picUser->location)->name,
+                                        'email' => $incident->picUser->email,
+                                        'phone' => $incident->picUser->no_telfon ?? '',
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->picUser->name) .
+                                    '</a>'
+                                : '-' !!}
+                        </div>
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Resolved By
                             :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $incident->resolve->name ?? '-' }}</div>
+                            {!! $incident->resolve
+                                ? '<a href="javascript:void(0);" onclick=\'showUserModal(' .
+                                    json_encode([
+                                        'name' => $incident->resolve->name,
+                                        'location' => optional($incident->resolve->location)->name,
+                                        'email' => $incident->resolve->email,
+                                        'phone' => $incident->resolve->no_telfon ?? '',
+                                    ]) .
+                                    ')\' class="text-purple-600 hover:underline">' .
+                                    e($incident->resolve->name) .
+                                    '</a>'
+                                : '-' !!}
+                        </div>
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Resolved At
                             :</label>
@@ -175,8 +276,23 @@
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Confirm By
                             :</label>
                         <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
-                            {{ $incident->confirm->name ?? '-' }}</div>
+                            @if ($incident->confirm)
+                                <a href="javascript:void(0);"
+                                    onclick="showUserModal({{ json_encode([
+                                        'name' => $incident->confirm->name,
+                                        'location' => optional($incident->confirm->location)->name,
+                                        'email' => $incident->confirm->email,
+                                        'phone' => $incident->confirm->no_telfon ?? null,
+                                    ]) }})"
+                                    class="text-purple-600 hover:underline">
+                                    {{ $incident->confirm->name }}
+                                </a>
+                            @else
+                                -
+                            @endif
+                        </div>
                     </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Status :</label>
                         <span
@@ -277,6 +393,7 @@
             <div id="deleted_ids" class="hidden"></div>
         </form>
 
+        @include('components.modal-user')
         @include('incidents.modal-spareparts')
         @push('scripts')
             <script>
@@ -295,6 +412,44 @@
                         });
                     }
                 });
+            </script>
+            <script>
+                function showUserModal(user) {
+                    document.getElementById('detailName').textContent = user.name || '-';
+                    document.getElementById('detailLocation').textContent = user.location || '-';
+
+                    const emailLink = document.getElementById('detailEmail');
+                    if (user.email) {
+                        emailLink.textContent = user.email;
+                        emailLink.href = 'mailto:' + user.email;
+                    } else {
+                        emailLink.textContent = '-';
+                        emailLink.href = '#';
+                    }
+
+                    const phoneLink = document.getElementById('detailPhone');
+                    if (user.phone) {
+                        phoneLink.textContent = user.phone;
+                        phoneLink.href = 'https://wa.me/' + user.phone.replace(/^0/, '62');
+                        phoneLink.setAttribute('target', '_blank');
+                        phoneLink.setAttribute('rel', 'noopener noreferrer');
+                    } else {
+                        phoneLink.textContent = '-';
+                        phoneLink.href = '#';
+                    }
+
+                    document.getElementById('userDetailModal').classList.remove('hidden');
+                }
+
+                function closeUserModal() {
+                    document.getElementById('userDetailModal').classList.add('hidden');
+                }
+
+                function handleOutsideClick(event) {
+                    if (event.target.id === 'userDetailModal') {
+                        closeUserModal();
+                    }
+                }
             </script>
         @endpush
 

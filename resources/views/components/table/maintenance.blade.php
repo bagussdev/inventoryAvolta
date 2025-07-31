@@ -12,6 +12,7 @@
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="store">Store</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="date">Date</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="freq">Frequency</th>
+                        <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="pic">PIC Staff</th>
                         <th class="px-4 py-2 md:px-6 md:py-3 cursor-pointer sort" data-sort="status">Status</th>
                         <th class="px-4 py-2 md:px-6 md:py-3">Actions</th>
                     </tr>
@@ -37,7 +38,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>
         const maintenanceList = new List('maintenance-list', {
-            valueNames: ['no', 'name', 'model', 'store', 'date', 'freq', 'status']
+            valueNames: ['no', 'name', 'model', 'store', 'date', 'freq', 'status', 'pic']
         });
 
         console.log("Polling Maintenances loaded...");

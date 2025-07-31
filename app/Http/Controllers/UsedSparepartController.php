@@ -57,16 +57,18 @@ class UsedSparepartController extends Controller
             $usedsQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
-        // 🔧 Perbedaan di sini: jika all, pakai get(); jika tidak, paginate
-        if ($perPage === 'all') {
-            $useds = $usedsQuery->latest('created_at')->get();
+        $isFiltered = $search || ($startDate && $endDate);
+
+        if ($perPage === 'all' || $isFiltered) {
+            $useds = $usedsQuery->orderBy('created_at', 'desc')->get();
         } else {
-            $useds = $usedsQuery->latest('created_at')
+            $useds = $usedsQuery
+                ->orderBy('created_at', 'desc')
                 ->paginate((int) $perPage)
                 ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
         }
 
-        return view('used_spareparts.index', compact('useds', 'search', 'perPage', 'startDate', 'endDate'));
+        return view('used_spareparts.index', compact('useds', 'search', 'perPage', 'startDate', 'endDate', 'isFiltered'));
     }
     public function tbody(Request $request)
     {

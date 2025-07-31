@@ -112,11 +112,18 @@ class IncidentController extends Controller
         }
 
 
-        $incidents = $perPage === 'all'
-            ? $incidentsQuery->latest('created_at')->get()
-            : $incidentsQuery->latest('created_at')->paginate((int) $perPage)->appends($request->query());
+        $isFiltered = $request->input('search') || ($request->input('startDate') && $request->input('endDate'));
 
-        return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
+        if ($perPage === 'all' || $isFiltered) {
+            $incidents = $incidentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $incidents = $incidentsQuery
+                ->orderBy('created_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends($request->query());
+        }
+
+        return view('incidents.index', compact('incidents', 'perPage', 'search', 'startDate', 'endDate', 'isFiltered'));
     }
 
     private function getNotificationTargets(string $type, int $departmentId = null): array
@@ -204,13 +211,18 @@ class IncidentController extends Controller
             $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
-        if ($perPage === 'all') {
-            $incidents = $query->latest('created_at')->get();
+        $isFiltered = request('search') || (request('startDate') && request('endDate'));
+
+        if ($perPage === 'all' || $isFiltered) {
+            $incidents = $query->orderBy('created_at', 'desc')->get();
         } else {
-            $incidents = $query->latest('created_at')->paginate((int) $perPage);
+            $incidents = $query
+                ->orderBy('created_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(request()->query());
         }
 
-        return view('partials.incidents-tbody', compact('incidents', 'perPage'));
+        return view('partials.incidents-tbody', compact('incidents', 'perPage', 'isFiltered'));
     }
     public function lastUpdated()
     {
@@ -386,15 +398,20 @@ class IncidentController extends Controller
             ]);
         }
 
-        if ($perPage === 'all') {
-            $incidents = $incidentsQuery->latest('created_at')->get();
+        // Deteksi apakah filter aktif
+        $isFiltered = $request->input('search') || ($startDate && $endDate);
+
+        // Ambil data berdasarkan pagination atau full
+        if ($perPage === 'all' || $isFiltered) {
+            $incidents = $incidentsQuery->orderBy('created_at', 'desc')->get();
         } else {
-            $incidents = $incidentsQuery->latest('created_at')
+            $incidents = $incidentsQuery
+                ->orderBy('created_at', 'desc')
                 ->paginate((int) $perPage)
                 ->appends($request->query());
         }
 
-        return view('incidents.completed', compact('incidents', 'perPage', 'search', 'startDate', 'endDate'));
+        return view('incidents.completed', compact('incidents', 'perPage', 'search', 'startDate', 'endDate', 'isFiltered'));
     }
     public function exportCompleted(Request $request)
     {

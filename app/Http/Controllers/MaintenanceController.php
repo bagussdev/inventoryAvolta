@@ -75,15 +75,18 @@ class MaintenanceController extends Controller
             $query->whereBetween('maintenance_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         });
 
-        if ($perPage === 'all') {
+        $isFiltered = $search || ($startDate && $endDate);
+
+        if ($perPage === 'all' || $isFiltered) {
             $maintenances = $maintenancesQuery->orderBy('maintenance_date', 'desc')->get();
         } else {
-            $maintenances = $maintenancesQuery->orderBy('maintenance_date', 'desc')
-                ->paginate((int) $perPage);
-            $maintenances->appends(compact('search', 'perPage', 'startDate', 'endDate'));
+            $maintenances = $maintenancesQuery
+                ->orderBy('maintenance_date', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
         }
 
-        return view('maintenances.index', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate'));
+        return view('maintenances.index', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate', 'isFiltered'));
     }
     public function tbody(Request $request)
     {
@@ -136,13 +139,18 @@ class MaintenanceController extends Controller
         }
 
         // Handle perPage
-        if ($perPage === 'all') {
+        $isFiltered = $search || ($startDate && $endDate);
+
+        if ($perPage === 'all' || $isFiltered) {
             $maintenances = $query->orderBy('maintenance_date', 'desc')->get();
         } else {
-            $maintenances = $query->orderBy('maintenance_date', 'desc')->paginate((int) $perPage);
+            $maintenances = $query
+                ->orderBy('maintenance_date', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
         }
 
-        return view('partials.maintenances-tbody', compact('maintenances', 'perPage'));
+        return view('partials.maintenances-tbody', compact('maintenances', 'perPage', 'isFiltered'));
     }
     public function lastUpdated()
     {
@@ -280,15 +288,18 @@ class MaintenanceController extends Controller
         });
 
         // Urutkan berdasarkan tanggal resolved terbaru
-        if ($perPage === 'all') {
+        $isFiltered = request('search') || (request('startDate') && request('endDate'));
+
+        if ($perPage === 'all' || $isFiltered) {
             $maintenances = $maintenancesQuery->orderBy('updated_at', 'desc')->get();
         } else {
-            $maintenances = $maintenancesQuery->orderBy('updated_at', 'desc')
+            $maintenances = $maintenancesQuery
+                ->orderBy('updated_at', 'desc')
                 ->paginate((int) $perPage)
                 ->appends(request()->query());
         }
 
-        return view('maintenances.completed', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate'));
+        return view('maintenances.completed', compact('maintenances', 'perPage', 'search', 'startDate', 'endDate', 'isFiltered'));
     }
 
     public function exportCompleted(Request $request)

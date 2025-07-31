@@ -11,7 +11,7 @@
                 class="border-b dark:border-gray-700 {{ $loop->odd ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800' }}">
                 <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
                 <td class="px-4 py-2 md:px-6 md:py-3 name">
-                    <a href="{{ route('maintenances.show', $maintenance->id) }}" class="text-blue-600 hover:underline">
+                    <a href="{{ route('maintenances.show', $maintenance->id) }}" class="text-purple-600 hover:underline">
                         MNT-000{{ ucfirst(strtolower($maintenance->id ?? '-')) }}
                     </a>
                 </td>
@@ -32,6 +32,22 @@
                     {{ \Carbon\Carbon::parse($maintenance->maintenance_date)->format('d M Y') }}
                 </td>
                 <td class="px-4 py-2 md:px-6 md:py-3 freq">{{ ucfirst($maintenance->frequensi) }}</td>
+                <td class="px-4 py-2 md:px-6 md:py-3 staff">
+                    @if ($maintenance->staff)
+                        <button
+                            onclick="showUserModal({{ json_encode([
+                                'name' => $maintenance->staff->name ?? '-',
+                                'location' => optional($maintenance->staff->location)->name ?? '-',
+                                'email' => $maintenance->staff->email ?? '-',
+                                'phone' => $maintenance->staff->no_telfon ?? '',
+                            ]) }})"
+                            class="text-purple-600 hover:underline">
+                            {{ $maintenance->staff->name }}
+                        </button>
+                    @else
+                        -
+                    @endif
+                </td>
                 <td class="px-4 py-2 md:px-6 md:py-3 status">
                     {{-- Status badge --}}
                     @php
@@ -86,7 +102,8 @@
                         @endif
 
                         <x-buttons.action-button text="Detail" color="purple"
-                            href="{{ route('maintenances.show', $maintenance->id) }}" onclick="showFullScreenLoader();" />
+                            href="{{ route('maintenances.show', $maintenance->id) }}"
+                            onclick="showFullScreenLoader();" />
                     </div>
                 </td>
             </tr>
