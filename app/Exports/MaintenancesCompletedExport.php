@@ -34,7 +34,7 @@ class MaintenancesCompletedExport implements FromCollection, WithHeadings, WithM
         $this->index++;
         return [
             $this->index,
-            'MNT-' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT),
+            'MNT' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT),
             $maintenance->equipment->item->name ?? '-',
             $maintenance->equipment->item->model ?? '-',
             $maintenance->equipment->item->brand ?? '-',

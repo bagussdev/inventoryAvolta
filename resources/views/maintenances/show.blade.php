@@ -96,7 +96,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">ID</label>
-                        <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">MNT-000{{ $maintenance->id }}
+                        <div class="bg-gray-100 dark:bg-gray-700 px-3 py-2 rounded-md">
+                            {{ 'MNT' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT) }}
                         </div>
                     </div>
                     <div>
@@ -238,8 +239,28 @@
                                     ⚙️ Manage Spareparts
                                 </button>
                             @endif
+
+                            @php
+                                $role = Auth::user()->role_id;
+                                $status = strtolower($maintenance->status);
+
+                                // Master & SPV bisa akses saat resolved / completed
+                                $canEditResolved =
+                                    ($role === 1 || $role === 3) && in_array($status, ['resolved', 'completed']);
+
+                                // Staff hanya bisa akses saat resolved saja
+                                $canEditResolved = $canEditResolved || ($role === 4 && $status === 'resolved');
+                            @endphp
+
+                            @if ($canEditResolved)
+                                <button type="button" onclick="openModal('editResolvedMaintenance')"
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                                    ✏️ Edit Notes
+                                </button>
+                            @endif
                         </div>
                     @endcan
+
                 </div>
             </div>
 
@@ -256,6 +277,8 @@
 
         {{-- === INCLUDE MODAL PARTIAL FOR MAINTENANCE === --}}
         @include('maintenances.modal-spareparts')
+        <x-edit-resolved id="editResolvedMaintenance" title="Update Notes & Attachment" :action="route('maintenances.updateResolved', $maintenance->id)"
+            :attachment="$maintenance->attachment ? asset('storage/' . $maintenance->attachment) : null" :notes="$maintenance->notes" />
 
         @push('scripts')
             {{-- Script for Viewer.js --}}

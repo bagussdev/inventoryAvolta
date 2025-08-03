@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class NotificationController extends Controller
 {
+    use AuthorizesRequests;
     public function index(Request $request)
     {
+        $this->authorize('isMaster');
         $search = $request->input('search');
         $perPage = $request->input('per_page', 10);
 
@@ -35,7 +40,6 @@ class NotificationController extends Controller
 
         return view('notification_preferences.list', compact('notifications', 'perPage'));
     }
-
 
     public function unreadCount()
     {
@@ -130,5 +134,61 @@ class NotificationController extends Controller
         $lastUpdated = $query->max('updated_at');
 
         return response()->json(['last_updated' => $lastUpdated]);
+    }
+
+    public function logViewer(Request $request)
+    {
+        $this->authorize('isMaster');
+
+        $logPath = storage_path('logs/laravel.log');
+
+        // Kalau file gak ada
+        if (!File::exists($logPath)) {
+            return view('log-viewer', [
+                'logs' => collect(),
+                'perPage' => 10,
+                'search' => '',
+                'showPagination' => false,
+            ]);
+        }
+
+        $lines = collect(explode("\n", File::get($logPath)))
+            ->filter(fn($line) => trim($line) !== '')
+            ->reverse()
+            ->values();
+
+        // Filter by search
+        $search = $request->input('search');
+        if ($search) {
+            $lines = $lines->filter(fn($line) => str_contains(strtolower($line), strtolower($search)));
+        }
+
+        // Ambil perPage
+        $perPageInput = $request->input('per_page', 10);
+        $perPage = $perPageInput === 'all' ? 'all' : (int) $perPageInput;
+        $currentPage = $request->input('page', 1);
+
+        // Kalau all, langsung tampilkan semua
+        if ($perPage === 'all') {
+            $logs = $lines;
+            $showPagination = false;
+        } else {
+            $paged = $lines->forPage($currentPage, $perPage)->values();
+            $logs = new LengthAwarePaginator(
+                $paged,
+                $lines->count(),
+                $perPage,
+                $currentPage,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+            $showPagination = true;
+        }
+
+        return view('log-viewer', [
+            'logs' => $logs,
+            'perPage' => $perPageInput,
+            'search' => $search,
+            'showPagination' => $showPagination,
+        ]);
     }
 }

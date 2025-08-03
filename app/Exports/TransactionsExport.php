@@ -31,7 +31,7 @@ class TransactionsExport implements FromCollection, WithHeadings
         return $this->transactions->map(function ($transaction, $index) {
             return [
                 'No'             => $index + 1,
-                'Transaction ID' => 'TRX-' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT),
+                'Transaction ID' => 'TRX' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT),
                 'Category'       => ucfirst($transaction->type),
                 'Item'           => $transaction->item->name ?? '-',
                 'QTY'            => $transaction->qty,

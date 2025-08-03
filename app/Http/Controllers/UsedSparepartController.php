@@ -30,22 +30,37 @@ class UsedSparepartController extends Controller
             ->with(['sparepart.item', 'maintenance', 'incident'])
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
+                    // Cari item name, qty, note
                     $q->whereHas('sparepart.item', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     })
                         ->orWhere('qty', 'like', "%{$search}%")
-                        ->orWhere('note', 'like', "%{$search}%")
-                        ->orWhere(function ($q) use ($search) {
-                            if (strtolower($search) === 'maintenance') {
-                                $q->whereNotNull('maintenance_id');
-                            } elseif (strtolower($search) === 'incident') {
-                                $q->whereNotNull('incident_id');
-                            }
-                        })
-                        ->orWhere('maintenance_id', 'like', "%{$search}%")
-                        ->orWhere('incident_id', 'like', "%{$search}%");
+                        ->orWhere('note', 'like', "%{$search}%");
+
+                    // Deteksi ID maintenance: MNT000123 → ambil ID 123
+                    if (preg_match('/^mnt0*(\d+)$/i', $search, $matches)) {
+                        $id = $matches[1];
+                        $q->orWhere('maintenance_id', $id);
+                    }
+
+                    // Deteksi unique_id Incident: INC000123
+                    $q->orWhereHas('incident', function ($sub) use ($search) {
+                        $sub->where('unique_id', 'like', "%{$search}%");
+                    });
+
+                    // Jika hanya ketik "mnt" atau "maintenance"
+                    if (preg_match('/^mnt$|^maintenance$/i', $search)) {
+                        $q->orWhereNotNull('maintenance_id');
+                    }
+
+                    // Jika hanya ketik "inc" atau "incident"
+                    if (preg_match('/^inc$|^incident$/i', $search)) {
+                        $q->orWhereNotNull('incident_id');
+                    }
                 });
             });
+
+
 
         if (!$isMaster && $user->department_id) {
             $usedsQuery->whereHas('sparepart.item', function ($q) use ($user) {
@@ -83,20 +98,33 @@ class UsedSparepartController extends Controller
         $query = UsedSparepart::with(['sparepart.item', 'maintenance', 'incident'])
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
+                    // Cari item name, qty, note
                     $q->whereHas('sparepart.item', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     })
                         ->orWhere('qty', 'like', "%{$search}%")
-                        ->orWhere('note', 'like', "%{$search}%")
-                        ->orWhere(function ($q) use ($search) {
-                            if (strtolower($search) === 'maintenance') {
-                                $q->whereNotNull('maintenance_id');
-                            } elseif (strtolower($search) === 'incident') {
-                                $q->whereNotNull('incident_id');
-                            }
-                        })
-                        ->orWhere('maintenance_id', 'like', "%{$search}%")
-                        ->orWhere('incident_id', 'like', "%{$search}%");
+                        ->orWhere('note', 'like', "%{$search}%");
+
+                    // Deteksi ID maintenance: MNT000123 → ambil ID 123
+                    if (preg_match('/^mnt0*(\d+)$/i', $search, $matches)) {
+                        $id = $matches[1];
+                        $q->orWhere('maintenance_id', $id);
+                    }
+
+                    // Deteksi unique_id Incident: INC000123
+                    $q->orWhereHas('incident', function ($sub) use ($search) {
+                        $sub->where('unique_id', 'like', "%{$search}%");
+                    });
+
+                    // Jika hanya ketik "mnt" atau "maintenance"
+                    if (preg_match('/^mnt$|^maintenance$/i', $search)) {
+                        $q->orWhereNotNull('maintenance_id');
+                    }
+
+                    // Jika hanya ketik "inc" atau "incident"
+                    if (preg_match('/^inc$|^incident$/i', $search)) {
+                        $q->orWhereNotNull('incident_id');
+                    }
                 });
             });
 

@@ -56,6 +56,7 @@ class EquipmentController extends Controller
             }
         }
 
+        // Filter pencarian
         if ($search) {
             $equipmentsQuery->where(function ($q) use ($search) {
                 $q->whereHas('item', fn($q2) => $q2->where('name', 'like', "%{$search}%"))
@@ -66,14 +67,20 @@ class EquipmentController extends Controller
             });
         }
 
-        $equipments = $perPage === 'all'
-            ? $equipmentsQuery->orderBy('created_at', 'desc')->get()
-            : $equipmentsQuery->orderBy('created_at', 'desc')
-            ->paginate((int) $perPage)
-            ->appends(['search' => $search, 'per_page' => $perPage]);
+        // Logika: jika sedang search → get semua data
+        $isFiltered = $search;
+
+        if ($perPage === 'all' || $isFiltered) {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(['search' => $search, 'per_page' => $perPage]);
+        }
 
         return view('equipments.index', compact('equipments', 'search', 'perPage'));
     }
+
 
 
     public function tbody(Request $request)
@@ -123,11 +130,16 @@ class EquipmentController extends Controller
             });
         }
 
-        $equipments = $perPage === 'all'
-            ? $equipmentsQuery->orderBy('created_at', 'desc')->get()
-            : $equipmentsQuery->orderBy('created_at', 'desc')->paginate((int) $perPage);
+        $isFiltered = $search;
 
-        return view('partials.equipments-tbody', compact('equipments'));
+        if ($perPage === 'all' || $isFiltered) {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')->get();
+        } else {
+            $equipments = $equipmentsQuery->orderBy('created_at', 'desc')
+                ->paginate((int) $perPage)
+                ->appends(['search' => $search, 'per_page' => $perPage]);
+        }
+        return view('partials.equipments-tbody', compact('equipments', 'isFiltered'));
     }
 
     public function lastUpdated()

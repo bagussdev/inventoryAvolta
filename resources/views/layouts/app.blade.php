@@ -46,7 +46,7 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             let idleTime = 0;
-            const maxIdleMinutes = 30;
+            const maxIdleMinutes = 15;
 
             function resetIdleTimer() {
                 idleTime = 0;

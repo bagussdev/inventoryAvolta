@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use App\Services\NotificationService;
 use App\Models\NotificationPreference;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -46,6 +48,13 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        $currentSessionId = Session::getId();
+
+        DB::table('sessions')
+            ->where('user_id', Auth::id())
+            ->where('id', '!=', $currentSessionId)
+            ->delete();
 
         $user = Auth::user();
         $department = $user->department->name ?? '-';

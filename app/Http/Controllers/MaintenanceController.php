@@ -17,6 +17,8 @@ use App\Exports\MaintenancesExport;
 use App\Exports\MaintenancesCompletedExport;
 use App\Models\NotificationPreference;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MaintenanceController extends Controller
 {
@@ -40,8 +42,7 @@ class MaintenanceController extends Controller
 
         $maintenancesQuery->when($search, function ($query) use ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhere('frequensi', 'like', "%{$search}%")
+                $q->where('frequensi', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%")
                     ->orWhere('maintenance_date', 'like', "%{$search}%")
                     ->orWhereHas('equipment.item', function ($sub) use ($search) {
@@ -58,6 +59,17 @@ class MaintenanceController extends Controller
                     ->orWhereHas('confirm', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
+
+                // 🔍 Jika search "mnt123" atau "MNT000123", ambil angkanya dan cocokan ke ID
+                if (preg_match('/^mnt0*(\d+)$/i', $search, $matches)) {
+                    $id = $matches[1];
+                    $q->orWhere('id', $id);
+                }
+
+                // 🔍 Jika hanya ketik "mnt", tampilkan semua (anggap semua punya ID)
+                if (preg_match('/^mnt$/i', $search)) {
+                    $q->orWhereNotNull('id'); // opsional, karena pasti semua ada ID
+                }
             });
         });
 
@@ -105,8 +117,7 @@ class MaintenanceController extends Controller
         // Pencarian
         $query->when($search, function ($query) use ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('id', 'like', "%{$search}%")
-                    ->orWhere('frequensi', 'like', "%{$search}%")
+                $q->where('frequensi', 'like', "%{$search}%")
                     ->orWhere('status', 'like', "%{$search}%")
                     ->orWhere('maintenance_date', 'like', "%{$search}%")
                     ->orWhereHas('equipment.item', function ($sub) use ($search) {
@@ -123,8 +134,20 @@ class MaintenanceController extends Controller
                     ->orWhereHas('confirm', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
+
+                // 🔍 Tambahan: cari berdasarkan ID yang ditulis dengan "MNT00045" atau "mnt45"
+                if (preg_match('/^mnt0*(\d+)$/i', $search, $matches)) {
+                    $maintenanceId = $matches[1]; // Ambil angka ID-nya
+                    $q->orWhere('id', $maintenanceId);
+                }
+
+                // 🔍 Jika cuma ketik "mnt", tampilkan semua
+                if (preg_match('/^mnt$/i', $search)) {
+                    $q->orWhereNotNull('id');
+                }
             });
         });
+
 
         // Filter department
         if (!$isMaster && $user->department_id) {
@@ -252,6 +275,7 @@ class MaintenanceController extends Controller
         // 1. Filter Pencarian
         $maintenancesQuery->when($search, function ($query) use ($search) {
             $query->where(function ($q) use ($search) {
+                // 🔍 Filter normal
                 $q->where('frequensi', 'like', "%{$search}%")
                     ->orWhere('maintenance_date', 'like', "%{$search}%")
                     ->orWhereHas('equipment.item', function ($sub) use ($search) {
@@ -268,6 +292,17 @@ class MaintenanceController extends Controller
                     ->orWhereHas('confirm', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
+
+                // 🔍 Tambahan pencarian berdasarkan ID seperti "mnt00045"
+                if (preg_match('/^mnt0*(\d+)$/i', $search, $matches)) {
+                    $id = $matches[1];
+                    $q->orWhere('id', $id);
+                }
+
+                // 🔍 Kalau hanya ketik "mnt", tampilkan semua
+                if (preg_match('/^mnt$/i', $search)) {
+                    $q->orWhereNotNull('id');
+                }
             });
         });
 
@@ -589,7 +624,7 @@ class MaintenanceController extends Controller
         $this->authorize('maintenance.confirm');
         $request->validate([
             'notes' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov,avi|max:10240',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,mp4,mov,avi|max:40960',
             'spareparts' => 'nullable|array',
             'spareparts.*.id' => 'nullable|exists:spareparts,id',
             'spareparts.*.qty' => 'nullable|integer|min:1',
@@ -899,5 +934,57 @@ class MaintenanceController extends Controller
         );
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance closed successfully and new schedule created.');
+    }
+
+    public function updateResolved(Request $request, $id)
+    {
+        $this->authorize('maintenance.edit');
+
+        $request->validate([
+            'notes' => 'nullable|string|max:1000',
+            'attachment' => 'nullable|file|max:40960|mimes:jpg,jpeg,png,gif,mp4,mov,avi,pdf,doc,docx,xls,xlsx',
+        ]);
+
+        $maintenance = Maintenance::findOrFail($id);
+
+        // Hapus file lama jika ada
+        if ($request->hasFile('attachment')) {
+            if ($maintenance->attachment && Storage::disk('public')->exists($maintenance->attachment)) {
+                Storage::disk('public')->delete($maintenance->attachment);
+            }
+
+            $filePath = $request->file('attachment')->store('maintenance_attachments', 'public');
+            $maintenance->attachment = $filePath;
+        }
+
+        // Simpan notes
+        $maintenance->notes = $request->notes;
+        $maintenance->save();
+
+        // === Notifikasi ===
+        $user = Auth::user();
+        $location = $maintenance->equipment->store->site_code ?? '-';
+        $maintenanceId = 'MNT-' . str_pad($maintenance->id, 4, '0', STR_PAD_LEFT);
+
+        $title = 'Maintenance Updated';
+        $message = "Notes and Attachment has been updated at <b>{$maintenanceId}</b> in <b>{$location}</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('edit_maintenance', $maintenance->equipment->item->department_id ?? null);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $maintenance->equipment->store->id ?? null;
+        }
+        unset($target);
+
+        NotificationService::send(
+            $targets,
+            'edit_maintenance',
+            $title,
+            $message,
+            'maintenances',
+            $maintenance->id
+        );
+
+        return redirect()->route('maintenances.show', $maintenance->id)
+            ->with('success', 'Maintenance notes and attachment updated.');
     }
 }

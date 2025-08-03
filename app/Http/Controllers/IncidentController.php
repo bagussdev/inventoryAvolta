@@ -168,23 +168,29 @@ class IncidentController extends Controller
                     ->orWhere('status', 'like', "%{$search}%")
                     ->orWhere('message_user', 'like', "%{$search}%")
                     ->orWhere('message_staff', 'like', "%{$search}%")
-                    ->orWhereHas('equipment.item', function ($sub) use ($search) {
+                    // Search through related item details (direct relation from Incident)
+                    ->orWhereHas('equipment.item', function ($sub) use ($search) { // Changed from 'equipment.item' to 'item'
                         $sub->where('name', 'like', "%{$search}%")
-                            ->orWhere('brand', 'like', "%{$search}%")
-                            ->orWhere('model', 'like', "%{$search}%");
+                            ->orWhere('model', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
                     })
+                    // Search through store name
                     ->orWhereHas('store', function ($sub) use ($search) {
                         $sub->where('site_code', 'like', "%{$search}%");
                     })
-                    ->orWhereHas('user', function ($sub) use ($search) {
+                    // Search through reporter's name (user relation maps to pic_user)
+                    ->orWhereHas('user', function ($sub) use ($search) { // Refers to 'pic_user' column
                         $sub->where('name', 'like', "%{$search}%");
                     })
-                    ->orWhereHas('picUser', function ($sub) use ($search) {
+                    // Search through PIC Staff's name
+                    ->orWhereHas('picUser', function ($sub) use ($search) { // Refers to 'pic_staff' column
                         $sub->where('name', 'like', "%{$search}%");
                     })
+                    // Search through Confirm By user's name
                     ->orWhereHas('confirm', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     })
+                    // Search through Resolved By user's name
                     ->orWhereHas('resolve', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%");
                     });
@@ -1278,5 +1284,53 @@ class IncidentController extends Controller
         );
 
         return redirect()->route('incidents.index')->with('success', 'Incident updated successfully.');
+    }
+    public function updateResolved(Request $request, $id)
+    {
+        $this->authorize('incident.edit');
+
+        $request->validate([
+            'notes' => 'nullable|string',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,gif,mp4,mov,avi,pdf|max:20480',
+        ]);
+
+        $incident = Incident::with(['store'])->findOrFail($id);
+        $incident->message_staff = $request->notes;
+
+        if ($request->hasFile('attachment')) {
+            if ($incident->attachment_staff && Storage::disk('public')->exists($incident->attachment_staff)) {
+                Storage::disk('public')->delete($incident->attachment_staff);
+            }
+
+            $path = $request->file('attachment')->store('incident_attachments', 'public');
+            $incident->attachment_staff = $path;
+        }
+
+        $incident->save();
+
+        // === NOTIFICATION ===
+        $user = Auth::user();
+        $incidentId = $incident->unique_id ?? ('INC-' . str_pad($incident->id, 4, '0', STR_PAD_LEFT));
+        $location = $incident->store?->site_code ?? '-';
+
+        $title = 'Incident Updated';
+        $message = "Notes and Attachment has been updated at <b>{$incidentId}</b> in <b>{$location}</b> by <b>{$user->name}</b>.";
+
+        $targets = $this->getNotificationTargets('edit_incident', $incident->department_to);
+        foreach ($targets as &$target) {
+            $target['store_id'] = $incident->store->id ?? null;
+        }
+        unset($target);
+
+        NotificationService::send(
+            $targets,
+            'edit_incident',
+            $title,
+            $message,
+            'incidents',
+            $incident->id
+        );
+
+        return redirect()->route('incidents.show', $incident->id)->with('success', 'Incident updated successfully.');
     }
 }

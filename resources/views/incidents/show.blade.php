@@ -311,78 +311,117 @@
             </div>
 
 
-            {{-- Message --}}
+            {{-- Message & Attachment --}}
             <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {{-- Left Column: Message User and Message Staff --}}
+                {{-- Message User --}}
                 <div>
-                    <p class="font-semibold">Message User :</p>
+                    <p class="font-semibold mb-1">Message User:</p>
                     <p class="italic text-gray-600 dark:text-gray-300">
-                        {{ $incident->message_user ?? 'No message provided.' }}</p>
+                        {{ $incident->message_user ?? 'No message provided.' }}
+                    </p>
+                </div>
 
-                    {{-- Message Staff now directly below Message User --}}
-                    <div class="mt-6"> {{-- Add margin-top for separation between the two messages --}}
-                        <p class="font-semibold">Message Staff :</p>
-                        <p class="italic text-gray-600 dark:text-gray-300">
-                            {{ $incident->message_staff ?? 'No message provided.' }}</p>
-                    </div>
-                    {{-- Used Spareparts (now below Attachment in the right column) --}}
-                    @if (in_array(strtolower($incident->status), ['resolved', 'completed']))
-                        <div class="mt-6"> {{-- Add margin-top for separation from Attachment --}}
-                            <h4 class="text-md font-semibold mb-2">Used Spareparts</h4>
-                            @if ($incident->usedSpareParts && $incident->usedSpareParts->isNotEmpty())
-                                <ul class="list-disc pl-6">
-                                    @foreach ($incident->usedSpareParts as $used)
-                                        <li>{{ $used->sparepart->item->name ?? '-' }} — Qty:
-                                            {{ $used->qty }}
-                                            @if ($used->note)
-                                                <span class="text-gray-500 italic">({{ $used->note }})</span>
-                                            @endif
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <p class="text-gray-500 italic">No spareparts used for this maintenance.</p>
-                            @endif
-                            @can('incident.update')
-                                <div class="mt-4">
-                                    <button onclick="openSparepartModal()"
-                                        class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md inline-block">
-                                        ⚙️ Manage Sparepart
-                                    </button>
-                                </div>
-                            @endcan
-                        </div>
+                {{-- Message Staff --}}
+                <div>
+                    <p class="font-semibold mb-1">Message Staff:</p>
+                    <p class="italic text-gray-600 dark:text-gray-300">
+                        {{ $incident->message_staff ?? 'No message provided.' }}
+                    </p>
+                </div>
+
+                {{-- Attachment User --}}
+                <div>
+                    <p class="text-sm font-semibold mb-2">Attachment from User</p>
+                    @if ($incident->attachment_user && Storage::disk('public')->exists($incident->attachment_user))
+                        @php
+                            $ext = pathinfo($incident->attachment_user, PATHINFO_EXTENSION);
+                            $url = asset('storage/' . $incident->attachment_user);
+                        @endphp
+                        @if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif']))
+                            <img id="viewer-image-wrapper" src="{{ $url }}" alt="Attachment User"
+                                class="w-full h-40 object-contain rounded shadow-md border border-gray-300 dark:border-gray-600" />
+                        @elseif(in_array(strtolower($ext), ['mp4', 'mov', 'avi']))
+                            <video src="{{ $url }}" controls class="w-full max-h-48 rounded shadow"></video>
+                        @else
+                            <a href="{{ $url }}" target="_blank" class="text-blue-600 hover:underline"
+                                onclick="showFullScreenLoader();">📄 View File</a>
+                        @endif
+                    @else
+                        <p class="text-gray-500 italic">No user attachment uploaded.</p>
                     @endif
                 </div>
 
-
-                {{-- Right Column: Attachment and Used Spareparts --}}
+                {{-- Attachment Staff --}}
                 <div>
-                    {{-- Attachment --}}
-                    <div>
-                        <h4 class="text-md font-semibold mb-2">Attachment</h4>
-                        @if ($incident->attachment_user && Storage::disk('public')->exists($incident->attachment_user))
-                            @php
-                                $ext = pathinfo($incident->attachment_user, PATHINFO_EXTENSION);
-                                $url = asset('storage/' . $incident->attachment_user);
-                            @endphp
-                            @if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif']))
-                                <img id="viewer-image-wrapper" src="{{ $url }}" alt="Attachment"
-                                    class="max-h-40 w-full object-contain rounded shadow-md border border-gray-300 dark:border-gray-600" />
-                            @elseif(in_array(strtolower($ext), ['mp4', 'mov', 'avi']))
-                                <video src="{{ $url }}" controls
-                                    class="rounded shadow w-full max-h-96 mt-2"></video>
-                            @else
-                                <a href="{{ $url }}" target="_blank" class="text-blue-600 underline"
-                                    onclick="showFullScreenLoader();">See Attachment</a>
-                            @endif
+                    <p class="text-sm font-semibold mb-2">Attachment from Staff</p>
+                    @if ($incident->attachment_staff && Storage::disk('public')->exists($incident->attachment_staff))
+                        @php
+                            $ext = pathinfo($incident->attachment_staff, PATHINFO_EXTENSION);
+                            $url = asset('storage/' . $incident->attachment_staff);
+                        @endphp
+                        @if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png', 'gif']))
+                            <img id="viewer-image-wrapper" src="{{ $url }}" alt="Attachment Staff"
+                                class="w-full max-h-40 object-contain rounded shadow-md border border-gray-300 dark:border-gray-600" />
+                        @elseif(in_array(strtolower($ext), ['mp4', 'mov', 'avi']))
+                            <video src="{{ $url }}" controls class="w-full max-h-48 rounded shadow"></video>
                         @else
-                            <p class="text-gray-500 italic">No attachment uploaded.</p>
+                            <a href="{{ $url }}" target="_blank" class="text-blue-600 hover:underline"
+                                onclick="showFullScreenLoader();">📄 View File</a>
                         @endif
-                    </div>
+                    @else
+                        <p class="text-gray-500 italic">No staff attachment uploaded.</p>
+                    @endif
                 </div>
             </div>
+
+            {{-- Used Spareparts --}}
+            @if (in_array(strtolower($incident->status), ['resolved', 'completed']))
+                <div class="mt-8">
+                    <h4 class="text-md font-semibold mb-2">Used Spareparts</h4>
+                    @if ($incident->usedSpareParts && $incident->usedSpareParts->isNotEmpty())
+                        <ul class="list-disc pl-6">
+                            @foreach ($incident->usedSpareParts as $used)
+                                <li>{{ $used->sparepart->item->name ?? '-' }} — Qty: {{ $used->qty }}
+                                    @if ($used->note)
+                                        <span class="text-gray-500 italic">({{ $used->note }})</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-gray-500 italic">No spareparts used for this incident.</p>
+                    @endif
+
+                    {{-- Tombol Manage dan Edit --}}
+                    @can('incident.update')
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            @php
+                                $role = Auth::user()->role_id;
+                                $status = strtolower($incident->status);
+
+                                $canEditResolved =
+                                    (($role === 1 || $role === 3) && in_array($status, ['resolved', 'completed'])) ||
+                                    ($role === 4 && $status === 'resolved');
+                            @endphp
+
+                            @if (in_array($status, ['resolved', 'completed']))
+                                <button type="button" onclick="openSparepartModal()"
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                                    ⚙️ Manage Spareparts
+                                </button>
+                            @endif
+
+                            @if ($canEditResolved)
+                                <button type="button" onclick="openModal('editResolvedIncident')"
+                                    class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                                    ✏️ Edit Notes
+                                </button>
+                            @endif
+                        </div>
+                    @endcan
+                </div>
+            @endif
+
         </div>
 
         <form id="sparepartsForm" action="{{ route('incidents.updateSpareparts', $incident->id) }}" method="POST"
@@ -395,6 +434,9 @@
 
         @include('components.modal-user')
         @include('incidents.modal-spareparts')
+        <x-edit-resolved id="editResolvedIncident" title="Update Notes & Attachment" :action="route('incidents.updateResolved', $incident->id)"
+            :attachment="$incident->attachment_staff ? asset('storage/' . $incident->attachment_staff) : null" :notes="$incident->message_staff" />
+
         @push('scripts')
             <script>
                 document.addEventListener('DOMContentLoaded', function() {

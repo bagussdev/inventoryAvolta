@@ -28,20 +28,21 @@
                 <x-table.incident :incidents="$incidents" :perPage="null" :showPagination="false" />
             @endif
         </div>
-        <div class="flex justify-between mb-4 mt-6">
-            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Request</h3>
-            <x-buttons.action-button text="More Requests" color="purple" class="w-fit"
-                href="{{ route('requests.index') }}" onclick="showFullScreenLoader()" />
-        </div>
-        {{-- data Requests --}}
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
 
-            @if ($requestsModel->isEmpty())
-                <p class="text-gray-500 italic">No data requests.</p>
+        {{-- <div class="flex justify-between mb-4 mt-6">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Latest Maintenance</h3>
+            <x-buttons.action-button text="More Maintenances" color="purple" class="w-fit"
+                href="{{ route('maintenances.index') }}" onclick="showFullScreenLoader()" />
+        </div> --}}
+        {{-- data Maintenances --}}
+        {{-- <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
+
+            @if ($maintenances->isEmpty())
+                <p class="text-gray-500 italic">No data maintenances.</p>
             @else
-                <x-table.request :requests="$requestsModel" :perPage="null" :showPagination="false" />
+                <x-table.maintenance :maintenances="$maintenances" :perPage="null" :showPagination="false" />
             @endif
-        </div>
+        </div> --}}
 
     </x-dashboard.sidebar>
 </x-app-layout>

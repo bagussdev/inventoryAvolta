@@ -24,6 +24,9 @@ class ItemController extends Controller
         $perPage = $request->input('per_page', 5);
         $search = $request->input('search');
 
+        if ($search && !$perPage) {
+            $perPage = 'all';
+        }
         // 3. Dapatkan user yang sedang login dan cek role-nya
         $user = Auth::user();
         $isMaster = Gate::allows('isMaster');
@@ -55,12 +58,14 @@ class ItemController extends Controller
 
         // 7. Urutkan berdasarkan yang terbaru (tanggal dibuat)
         // Ini adalah cara paling efisien untuk mengurutkan terbaru
-        if ($perPage === 'all') {
-            $items = $itemsQuery->get(); // tanpa paginate
+        $isFiltered = $search;
+        if ($perPage === 'all' || $isFiltered) {
+            $items = $itemsQuery->orderBy('created_at', 'desc')->get();
         } else {
-            $items = $itemsQuery->latest()
-                ->paginate((int) $perPage)
-                ->appends(compact('search', 'perPage'));
+            $perPage = (int) ($perPage ?: 5);
+            $items = $itemsQuery->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->appends($request->query());
         }
         // 8. Kirim data ke view
         return view('inventoryitems.index', compact('items', 'search', 'perPage'));
@@ -95,12 +100,14 @@ class ItemController extends Controller
             }
         }
 
-        if ($perPage === 'all') {
-            $items = $itemsQuery->get(); // tanpa paginate
+        $isFiltered = $search;
+        if ($perPage === 'all' || $isFiltered) {
+            $items = $itemsQuery->orderBy('created_at', 'desc')->get();
         } else {
-            $items = $itemsQuery->latest()
-                ->paginate((int) $perPage)
-                ->appends(compact('search', 'perPage'));
+            $perPage = (int) ($perPage ?: 5);
+            $items = $itemsQuery->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->appends($request->query());
         }
 
         return view('partials.items-tbody', compact('items', 'search', 'perPage'));

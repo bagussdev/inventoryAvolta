@@ -24,7 +24,7 @@
             <div class="block md:hidden space-y-4">
                 @php
                     $fields = [
-                        'Transaction ID' => $transaction->id,
+                        'Transaction ID' => 'TRX' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT),
                         'Category' => ucfirst($transaction->item->category ?? '-'),
                         'Item' => $transaction->item->name ?? '-',
                         'Model' => $transaction->item->model ?? '-',
@@ -54,7 +54,8 @@
             {{-- DESKTOP VERSION --}}
             <div class="hidden md:grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div><span class="font-medium">Transaction ID :</span>
-                    <div class="bg-gray-100 dark:bg-gray-700 rounded px-3 py-2 mt-1">{{ $transaction->id }}</div>
+                    <div class="bg-gray-100 dark:bg-gray-700 rounded px-3 py-2 mt-1">
+                        {{ 'TRX' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT) }}</div>
                 </div>
                 <div><span class="font-medium">Category :</span>
                     <div class="bg-gray-100 dark:bg-gray-700 rounded px-3 py-2 mt-1">

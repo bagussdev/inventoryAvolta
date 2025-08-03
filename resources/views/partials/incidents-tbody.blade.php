@@ -90,26 +90,14 @@
             @endphp
             <td class="px-5 py-4">
                 <div class="flex flex-row items-center justify-center gap-1">
+                    {{-- Tombol berdasarkan status incident --}}
+                    @switch(strtolower($incident->status))
+                        @case('waiting')
+                            @can('incident.edit')
+                                <x-buttons.action-button text="Edit" color="green"
+                                    href="{{ route('incidents.edit', $incident->id) }}" onclick="showFullScreenLoader();" />
+                            @endcan
 
-                    {{-- ROLE: USER -- tampilkan tombol Edit jika status masih waiting --}}
-                    @if ($roleName === 'user' && $incident->status === 'waiting')
-                        @can('incident.edit')
-                            <x-buttons.action-button text="Edit" color="green"
-                                href="{{ route('incidents.edit', $incident->id) }}" onclick="showFullScreenLoader();" />
-                        @endcan
-                    @elseif ($incident->status === 'resolved')
-                        @can('incident.closed')
-                            <form method="POST" action="{{ route('incidents.complete', $incident->id) }}"
-                                onsubmit="return confirmAndLoad('Mark this incident as completed?')">
-                                @csrf
-                                <x-buttons.action-button text="Closed" color="red" />
-                            </form>
-                        @endcan
-                    @endif
-
-                    {{-- ROLE: STAFF atau SPV --}}
-                    @if (in_array($roleName, ['staff', 'spv']))
-                        @if ($incident->status === 'waiting')
                             @can('incident.proses')
                                 <form method="POST" action="{{ route('incidents.start', $incident->id) }}"
                                     onsubmit="return confirmAndLoad('Start progress for this incident?')">
@@ -117,7 +105,9 @@
                                     <x-buttons.action-button text="Proses" color="blue" />
                                 </form>
                             @endcan
-                        @elseif ($incident->status === 'pending')
+                        @break
+
+                        @case('pending')
                             @can('incident.proses')
                                 <form method="POST" action="{{ route('incidents.restart', $incident->id) }}"
                                     onsubmit="return confirmAndLoad('Continue progress for this incident?')">
@@ -125,13 +115,16 @@
                                     <x-buttons.action-button text="Continue" color="yellow" />
                                 </form>
                             @endcan
-                        @elseif ($incident->status === 'in progress')
+                        @break
+
+                        @case('in progress')
                             @can('incident.resolve')
                                 <x-buttons.action-button text="Confirm" color="blue"
-                                    href="{{ route('incidents.resolve', $incident->id) }}"
-                                    onclick="showFullScreenLoader();" />
+                                    href="{{ route('incidents.resolve', $incident->id) }}" onclick="showFullScreenLoader();" />
                             @endcan
-                        @elseif ($incident->status === 'resolved')
+                        @break
+
+                        @case('resolved')
                             @can('incident.closed')
                                 <form method="POST" action="{{ route('incidents.complete', $incident->id) }}"
                                     onsubmit="return confirmAndLoad('Mark this incident as completed?')">
@@ -139,50 +132,19 @@
                                     <x-buttons.action-button text="Closed" color="red" />
                                 </form>
                             @endcan
-                        @endif
-                    @endif
+                        @break
+                    @endswitch
 
-                    {{-- ROLE: MASTER --}}
-                    @if ($roleName === 'master')
-                        {{-- Aksi sesuai status --}}
-                        @if ($incident->status === 'waiting')
-                            <form method="POST" action="{{ route('incidents.start', $incident->id) }}"
-                                onsubmit="return confirmAndLoad('Start progress for this incident?')">
-                                @csrf
-                                <x-buttons.action-button text="Proses" color="blue" />
-                            </form>
-                            {{-- Tampilkan tombol Edit untuk semua incident --}}
-                            <x-buttons.action-button text="Edit" color="green"
-                                href="{{ route('incidents.edit', $incident->id) }}"
-                                onclick="showFullScreenLoader();" />
-                        @elseif ($incident->status === 'pending')
-                            <form method="POST" action="{{ route('incidents.restart', $incident->id) }}"
-                                onsubmit="return confirmAndLoad('Continue progress for this incident?')">
-                                @csrf
-                                <x-buttons.action-button text="Continue" color="yellow" />
-                            </form>
-                        @elseif ($incident->status === 'in progress')
-                            <x-buttons.action-button text="Confirm" color="blue"
-                                href="{{ route('incidents.resolve', $incident->id) }}"
-                                onclick="showFullScreenLoader();" />
-                        @elseif ($incident->status === 'resolved')
-                            <form method="POST" action="{{ route('incidents.complete', $incident->id) }}"
-                                onsubmit="return confirmAndLoad('Mark this incident as completed?')">
-                                @csrf
-                                <x-buttons.action-button text="Closed" color="red" />
-                            </form>
-                        @endif
-                    @endif
-
-                    {{-- Tombol DETAIL selalu muncul --}}
+                    {{-- Tombol Detail selalu ditampilkan --}}
                     <x-buttons.action-button text="Detail" color="purple"
                         href="{{ route('incidents.show', $incident->id) }}" onclick="showFullScreenLoader();" />
                 </div>
             </td>
+
         </tr>
-    @empty
-        <tr>
-            <td colspan="10" class="text-center py-4 text-xs">No incident data found.</td>
-        </tr>
-    @endforelse
-</tbody>
+        @empty
+            <tr>
+                <td colspan="10" class="text-center py-4 text-xs">No incident data found.</td>
+            </tr>
+        @endforelse
+    </tbody>

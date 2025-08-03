@@ -12,7 +12,7 @@
                 <td class="px-4 py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}</td>
                 <td class="px-4 py-2 md:px-6 md:py-3 name">
                     <a href="{{ route('maintenances.show', $maintenance->id) }}" class="text-purple-600 hover:underline">
-                        MNT-000{{ ucfirst(strtolower($maintenance->id ?? '-')) }}
+                        {{ 'MNT' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT) }}
                     </a>
                 </td>
                 <td class="px-4 py-2 md:px-6 md:py-3 model">

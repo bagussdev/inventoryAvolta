@@ -19,7 +19,11 @@
             <td class="px-4
         py-2 md:px-6 md:py-3 no">{{ $loop->iteration }}
             </td>
-            <td class="px-4 py-2 md:px-6 md:py-3 id">{{ $transaction->id }}</td>
+            <td class="px-4 py-2 md:px-6 md:py-3 id">
+                <a href="{{ route('transactions.show', $transaction->id) }}" class="text-purple-600 hover:underline">
+                    {{ 'TRX' . str_pad($transaction->id, 5, '0', STR_PAD_LEFT) }}
+                </a>
+            </td>
             <td class="px-4 py-2 md:px-6 md:py-3 capitalize type">{{ strtolower($transaction->type) }}
             </td>
             <td class="px-4 py-2 md:px-6 md:py-3 capitalize item">
@@ -35,13 +39,22 @@
                 <div class="flex flex-row items-center justify-center gap-1">
                     @can('historytransactions.edit')
                         <x-buttons.action-button text="Edit" color="blue"
-                            href="{{ route('transactions.edit', $transaction->id) }}" onclick="showFullScreenLoader();"
-                            class="" />
+                            href="{{ route('transactions.edit', $transaction->id) }}" onclick="showFullScreenLoader();" />
                     @endcan
+
                     <x-buttons.action-button text="Detail" color="purple"
-                        href="{{ route('transactions.show', $transaction->id) }}" onclick="showFullScreenLoader();"
-                        class="" />
+                        href="{{ route('transactions.show', $transaction->id) }}" onclick="showFullScreenLoader();" />
+
+                    @can('historytransactions.delete')
+                        <form method="POST" action="{{ route('transactions.destroy', $transaction->id) }}"
+                            onsubmit="return confirmAndLoad('Are you sure you want to delete this transaction?')">
+                            @csrf
+                            @method('DELETE')
+                            <x-buttons.action-button text="Delete" color="red" />
+                        </form>
+                    @endcan
                 </div>
+
             </td>
 
         </tr>

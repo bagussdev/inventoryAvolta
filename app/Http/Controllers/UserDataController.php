@@ -30,14 +30,29 @@ class UserDataController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('no_telfon', 'like', "%{$search}%");
+                        ->orWhere('no_telfon', 'like', "%{$search}%")
+
+                        // Tambahkan pencarian berdasarkan relasi:
+                        ->orWhereHas('role', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('department', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('location', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%")
+                                ->orWhere('site_code', 'like', "%{$search}%");
+                        });
                 });
             });
 
-        if ($perPage === 'all') {
+        $isFiltered = $search;
+
+        if ($perPage === 'all' || $isFiltered) {
             $users = $query->orderBy('updated_at', 'desc')->get();
         } else {
-            $users = $query->orderBy('updated_at', 'desc')->paginate((int) $perPage)
+            $users = $query->orderBy('updated_at', 'desc')
+                ->paginate((int) $perPage)
                 ->appends([
                     'search' => $search,
                     'per_page' => $perPage,
@@ -60,13 +75,29 @@ class UserDataController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('no_telfon', 'like', "%{$search}%");
+                        ->orWhere('no_telfon', 'like', "%{$search}%")
+
+                        // Tambahkan pencarian berdasarkan relasi:
+                        ->orWhereHas('role', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('department', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('location', function ($sub) use ($search) {
+                            $sub->where('name', 'like', "%{$search}%")
+                                ->orWhere('site_code', 'like', "%{$search}%");
+                        });
                 });
             });
 
-        $users = $perPage === 'all'
+        $isFiltered = $search;
+
+        $users = ($perPage === 'all' || $isFiltered)
             ? $query->orderByDesc('updated_at')->get()
-            : $query->orderByDesc('updated_at')->paginate((int)$perPage)->appends($request->query());
+            : $query->orderByDesc('updated_at')
+            ->paginate((int) $perPage)
+            ->appends($request->query());
 
         return view('partials.users-tbody', compact('users'))->render();
     }

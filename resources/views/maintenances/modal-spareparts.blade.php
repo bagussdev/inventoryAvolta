@@ -1,5 +1,5 @@
-{{-- MAIN MODAL FOR MANAGING SPAREPARTS IN MAINTENANCE CONTEXT --}}
-@if (isset($maintenance) && $maintenance->status === 'completed')
+@if (isset($maintenance) &&
+        (strtolower($maintenance->status) === 'resolved' || strtolower($maintenance->status) === 'completed'))
     <div id="sparepartModal"
         class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center p-4">
         <div

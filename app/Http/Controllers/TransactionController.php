@@ -15,6 +15,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
 use App\Models\NotificationPreference;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class TransactionController extends Controller
 {
@@ -105,7 +107,10 @@ class TransactionController extends Controller
                     ->orWhereHas('item', function ($sub) use ($search) {
                         $sub->where('name', 'like', "%{$search}%")
                             ->orWhere('brand', 'like', "%{$search}%")
+                            ->orWhere('category', 'like', "%{$search}%")
                             ->orWhere('model', 'like', "%{$search}%");
+                    })->orWhereHas('user', function ($sub) use ($search) {
+                        $sub->where('name', 'like', "%{$search}%");
                     });
             });
         }
@@ -120,13 +125,18 @@ class TransactionController extends Controller
             $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
-        if ($perPage === 'all') {
+        $isFiltered = $search || ($startDate && $endDate);
+
+        if ($perPage === 'all' || $isFiltered) {
             $transactions = $query->orderBy('created_at', 'desc')->get();
         } else {
-            $transactions = $query->orderBy('created_at', 'desc')->paginate($perPage);
+            $transactions = $query
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage)
+                ->appends(compact('search', 'perPage', 'startDate', 'endDate'));
         }
 
-        return view('partials.transactions-tbody', compact('transactions'));
+        return view('partials.transactions-tbody', compact('transactions', 'isFiltered'));
     }
 
     public function lastUpdated(Request $request)
@@ -257,20 +267,14 @@ class TransactionController extends Controller
 
         $message = "$itemLabel has been added as <span class='font-bold'>$asType</span> by <b>{$user->name}</b>.";
 
-        foreach ($targets as $target) {
-            $target->notifications()->create([
-                'role_id' => $target->role_id,
-                'department_id' => $item->department_id,
-                'store_id' => null,
-                'triggered_by' => $user->id,
-                'type' => $type,
-                'title' => 'New Item Transaction',
-                'message' => $message,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'read' => false
-            ]);
-        }
+        NotificationService::send(
+            $targets,
+            $type,
+            'New Item Transaction',
+            $message,
+            $referenceType,
+            $referenceId
+        );
     }
 
     private function notifyUpdate(string $type, $itemId, $referenceType, $referenceId)
@@ -284,22 +288,15 @@ class TransactionController extends Controller
         $itemLabel = "<b>" . strtoupper($item->name) . "</b> (" . strtoupper($item->brand) . " " . strtoupper($item->model) . ")";
         $message = "$itemLabel has been <span class='font-bold'>updated</span> by <b>{$user->name}</b>.";
 
-        foreach ($targets as $target) {
-            $target->notifications()->create([
-                'role_id' => $target->role_id,
-                'department_id' => $item->department_id,
-                'store_id' => null,
-                'triggered_by' => $user->id,
-                'type' => $type,
-                'title' => 'Item Updated',
-                'message' => $message,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'read' => false
-            ]);
-        }
+        NotificationService::send(
+            $targets,
+            $type,
+            'Item Updated',
+            $message,
+            $referenceType,
+            $referenceId
+        );
     }
-
 
     public function store(Request $request)
     {
@@ -309,8 +306,8 @@ class TransactionController extends Controller
             'items_id' => 'required|exists:items,id',
             'serial_number' => 'nullable|string|max:255|required_if:type,equipment',
             'qty' => 'required|integer|min:1',
-            'photoitems' => 'required|image|mimes:jpeg,jpg,png,webp|max:2048',
-            'attachmentfile' => 'required|file|mimes:pdf,jpeg,jpg,png,webp|max:4096',
+            'photoitems' => 'required|image|mimes:jpeg,jpg,png,webp|max:10240',
+            'attachmentfile' => 'required|file|mimes:pdf,jpeg,jpg,png,webp|max:10240',
             'notes' => 'nullable|string|max:1000',
             'supplier' => 'required|string|max:255',
             'type' => 'required|in:equipment,sparepart',
@@ -363,15 +360,20 @@ class TransactionController extends Controller
                     'location' => $storageStore->id,
                     'status' => 'available'
                 ]);
-                $this->notifyByType('equipment_create', $transaction->items_id, 'Transaction', $transaction->id);
+                $this->notifyByType('equipment_create', $transaction->items_id, 'transactions', $transaction->id);
             } else {
-                $sparepart = Sparepart::firstOrNew([
-                    'items_id' => $validated['items_id']
-                ]);
+                $sparepart = Sparepart::firstOrCreate(
+                    ['items_id' => $validated['items_id']],
+                    [
+                        'transactions_id' => $transaction->id,
+                        'qty' => 0, // default
+                        'status' => 'available', // default
+                    ]
+                );
 
+                // Update qty dan transaction id setiap saat
                 $sparepart->transactions_id = $transaction->id;
-
-                $sparepart->qty = ($sparepart->qty ?? 0) + $validated['qty'];
+                $sparepart->qty += $validated['qty'];
 
                 // Update status
                 if ($sparepart->qty === 0) {
@@ -383,7 +385,7 @@ class TransactionController extends Controller
                 }
 
                 $sparepart->save();
-                $this->notifyByType('sparepart_create', $transaction->items_id, 'Transaction', $transaction->id);
+                $this->notifyByType('sparepart_create', $transaction->items_id, 'transactions', $transaction->id);
             }
 
             return redirect()->route('transactions.index')->with('success', 'Transaction berhasil disimpan.');
@@ -481,7 +483,7 @@ class TransactionController extends Controller
             }
 
             $type = $transaction->type === 'equipment' ? 'equipment_update' : 'sparepart_update';
-            $this->notifyUpdate($type, $transaction->items_id, 'Transaction', $transaction->id);
+            $this->notifyUpdate($type, $transaction->items_id, 'transactions', $transaction->id);
 
             return redirect()->route('transactions.index')->with('success', 'Transaksi dan data equipment berhasil diperbarui.');
         } catch (\Exception $e) {
@@ -522,6 +524,70 @@ class TransactionController extends Controller
         }
 
         return response()->json($query->get());
+    }
+
+    public function destroy($id)
+    {
+        $this->authorize('historytransactions.delete');
+
+        $transaction = Transaction::findOrFail($id);
+
+        if ($transaction->type === 'equipment') {
+            $equipment = Equipment::where('items_id', $transaction->items_id)
+                ->where('serial_number', $transaction->serial_number)
+                ->first();
+
+            if ($equipment) {
+                // Cek apakah equipment digunakan di maintenance atau incident
+                $usedInMaintenance = DB::table('maintenances')->where('equipment_id', $equipment->id)->exists();
+                $usedInIncident = DB::table('incidents')->where('item_problem', $equipment->id)->exists();
+
+                if ($usedInMaintenance || $usedInIncident) {
+                    return redirect()->back()->with('error', 'Cannot delete: Equipment is in use.');
+                }
+
+                // Validasi status harus 'available' atau 'broken'
+                if (!in_array(strtolower($equipment->status), ['available', 'broken'])) {
+                    return redirect()->back()->with('error', 'Cannot delete: Equipment status must be "available" or "broken".');
+                }
+
+                $equipment->delete();
+            }
+        } elseif ($transaction->type === 'sparepart') {
+            $sparepart = Sparepart::where('items_id', $transaction->items_id)->first();
+
+            if ($sparepart) {
+                if ($sparepart->qty < $transaction->qty) {
+                    return back()->with('error', 'Cannot delete: Sparepart stock insufficient.');
+                }
+
+                $sparepart->qty -= $transaction->qty;
+
+                // Update status sparepart
+                if ($sparepart->qty <= 0) {
+                    $sparepart->status = 'empty';
+                } elseif ($sparepart->qty < 5) {
+                    $sparepart->status = 'low';
+                } else {
+                    $sparepart->status = 'available';
+                }
+
+                $sparepart->save(); // sparepart tetap ada, hanya qty dikurangi
+            }
+        }
+
+        // Hapus file jika ada
+        if ($transaction->photoitems && Storage::disk('public')->exists($transaction->photoitems)) {
+            Storage::disk('public')->delete($transaction->photoitems);
+        }
+
+        if ($transaction->attachmentfile && Storage::disk('public')->exists($transaction->attachmentfile)) {
+            Storage::disk('public')->delete($transaction->attachmentfile);
+        }
+
+        $transaction->delete(); // hanya hapus baris transaksi
+
+        return redirect()->route('transactions.index')->with('success', 'Transaction deleted successfully.');
     }
 
 

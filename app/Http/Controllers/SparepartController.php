@@ -65,17 +65,18 @@ class SparepartController extends Controller
         }
 
         // 6. Urutkan berdasarkan yang terbaru diupdate
-        if ($perPage === 'all') {
+        $isFiltered = $search;
+        if ($perPage === 'all' || $isFiltered) {
             $spareparts = $sparepartsQuery
                 ->orderBy('updated_at', 'desc')
                 ->get();
         } else {
+            $perPage = (int) ($perPage ?: 5);
             $spareparts = $sparepartsQuery
                 ->orderBy('updated_at', 'desc')
-                ->paginate((int) $perPage)
-                ->appends(compact('search', 'perPage'));
+                ->paginate($perPage)
+                ->appends($request->query());
         }
-
 
         // 7. Kirim data ke view
         return view('spareparts.index', compact('spareparts', 'search', 'perPage'));
@@ -115,17 +116,18 @@ class SparepartController extends Controller
             }
         }
 
-        if ($perPage === 'all') {
+        $isFiltered = $search;
+        if ($perPage === 'all' || $isFiltered) {
             $spareparts = $sparepartsQuery
                 ->orderBy('updated_at', 'desc')
-                ->get(); // Ambil semua tanpa pagination
+                ->get();
         } else {
+            $perPage = (int) ($perPage ?: 5);
             $spareparts = $sparepartsQuery
                 ->orderBy('updated_at', 'desc')
-                ->paginate((int) $perPage)
-                ->appends(compact('search', 'perPage'));
+                ->paginate($perPage)
+                ->appends($request->query());
         }
-
 
         return view('partials.spareparts-tbody', compact('spareparts'))->render();
     }
@@ -263,6 +265,13 @@ class SparepartController extends Controller
                 ];
             });
 
+        $latestPhotoTransaction = Transaction::where('items_id', $sparepart->items_id)
+            ->whereNotNull('photoitems')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get()
+            ->first();
+
         // Gabungkan dan urutkan berdasarkan tanggal terbaru
         $history = collect($transactionIns)
             ->merge($usedOuts)
@@ -271,6 +280,6 @@ class SparepartController extends Controller
         $totalIn = $history->where('type', 'in')->sum('qty');
         $totalOut = $history->where('type', 'out')->sum('qty');
         $totalStock = $totalIn - $totalOut;
-        return view('spareparts.show', compact('sparepart', 'history', 'totalIn', 'totalOut', 'totalStock'));
+        return view('spareparts.show', compact('sparepart', 'history', 'totalIn', 'totalOut', 'totalStock', 'latestPhotoTransaction'));
     }
 }

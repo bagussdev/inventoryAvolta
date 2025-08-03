@@ -34,13 +34,14 @@ class MaintenancesExport implements FromCollection, WithHeadings, WithMapping
 
         return [
             $this->index, // No
-            'MNT-' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT), // Maintenance ID
+            'MNT' . str_pad($maintenance->id, 5, '0', STR_PAD_LEFT), // Maintenance ID
             $maintenance->equipment->item->name ?? '-',
             $maintenance->equipment->item->model ?? '-',
             $maintenance->equipment->item->brand ?? '-',
             $maintenance->equipment->store->name ?? '-',
-            ucfirst($maintenance->frequensi),
             \Carbon\Carbon::parse($maintenance->maintenance_date)->format('d M Y'),
+            ucfirst($maintenance->frequensi),
+            optional($maintenance->staff)->name ?? '-',
             ucfirst($maintenance->status),
         ];
     }
@@ -57,8 +58,9 @@ class MaintenancesExport implements FromCollection, WithHeadings, WithMapping
             'Model',
             'Brand',
             'Location',
-            'Frequency',
             'Maintenance Date',
+            'Frequency',
+            'PIC Staff',
             'Status',
         ];
     }

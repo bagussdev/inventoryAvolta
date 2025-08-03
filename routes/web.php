@@ -26,6 +26,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+
 // Guest only: jika sudah login, tidak bisa akses login
 Route::middleware('guest')->group(function () {
     Route::view('/login', 'auth.login')->name('login');
@@ -36,6 +37,8 @@ Route::middleware(['auth'])->group(function () {
     // Route::get('/dashboard', function () {
     //     return view('master.index');
     // })->name('dashboard');
+    Route::get('/log-viewer', [NotificationController::class, 'logViewer'])->name('log.viewer');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // inventory Management
@@ -85,6 +88,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/maintenances/{id}/confirm', [MaintenanceController::class, 'submitConfirm'])->name('maintenances.submitConfirm');
     Route::get('maintenances/{id}/closed', [MaintenanceController::class, 'closed'])->name('maintenances.closed');
     Route::put('/maintenances/{id}/update-spareparts', [MaintenanceController::class, 'updateSpareparts'])->name('maintenances.updateSpareparts');
+    Route::put('/maintenances/{id}/update-resolved', [MaintenanceController::class, 'updateResolved'])->name('maintenances.updateResolved');
     Route::get('/maintenances-completed/{maintenance}', [MaintenanceController::class, 'show'])->name('maintenances.showCompletedDetail');
     Route::get('/api/spareparts/{id}/stock', [ApiSparepartController::class, 'getStock']);
     Route::get('/maintenances-export', [MaintenanceController::class, 'export'])->name('maintenances.export');
@@ -122,6 +126,7 @@ Route::middleware(['auth'])->group(function () {
     route::resource('incidents', IncidentController::class);
     Route::get('/incidents-completed', [IncidentController::class, 'completed'])->name('incidents.completed');
     Route::put('/incidents/{id}/update-spareparts', [IncidentController::class, 'updateSpareparts'])->name('incidents.updateSpareparts');
+    Route::put('/incidents/{id}/update-resolved', [IncidentController::class, 'updateResolved'])->name('incidents.updateResolved');
     Route::get('/incidents-completed/{incident}', [IncidentController::class, 'show'])->name('incidents.showCompletedDetail');
     Route::get('/incidents-export', [IncidentController::class, 'export'])->name('incidents.export');
     Route::get('/incidents-exportCompleted', [IncidentController::class, 'exportCompleted'])->name('incidents.exportCompleted');

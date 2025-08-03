@@ -49,17 +49,17 @@
                     <div class="flex gap-4">
                         <div class="w-40 font-medium">Photo</div>
                         <div class="flex-1" id="sparepart-photo-viewer">
-                            @if ($sparepart->transaction && $sparepart->transaction->photoitems)
-                                <ul class="list-none">
-                                    <li>
-                                        <img src="{{ asset('storage/' . $sparepart->transaction->photoitems) }}"
-                                            alt="Photo" class="w-48 h-auto rounded-md shadow cursor-pointer"
-                                            style="max-height: 200px;" />
-                                    </li>
-                                </ul>
+                            @php
+                                $photo = $latestPhotoTransaction?->photoitems;
+                            @endphp
+
+                            @if ($photo && Storage::disk('public')->exists($photo))
+                                <img src="{{ asset('storage/' . $photo) }}" alt="Latest Photo"
+                                    class="h-40 w-full object-contain rounded shadow border border-gray-300 dark:border-gray-600" />
                             @else
-                                <span class="italic text-gray-400">No photo available</span>
+                                <p class="italic text-gray-400">No photo available</p>
                             @endif
+
                         </div>
                     </div>
                 </div>
@@ -79,11 +79,15 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Photo</label>
                     <div class="px-3 py-2" id="sparepart-photo-viewer">
-                        @if ($sparepart->transaction && $sparepart->transaction->photoitems)
-                            <img src="{{ asset('storage/' . $sparepart->transaction->photoitems) }}" alt="Photo"
-                                class="w-48 h-auto rounded-md shadow cursor-pointer" style="max-height: 200px;" />
+                        @php
+                            $photo = $latestPhotoTransaction?->photoitems;
+                        @endphp
+
+                        @if ($photo && Storage::disk('public')->exists($photo))
+                            <img src="{{ asset('storage/' . $photo) }}" alt="Latest Photo"
+                                class="h-40 w-full object-contain rounded shadow-md border border-gray-300 dark:border-gray-600" />
                         @else
-                            <span class="italic text-gray-400">No photo available</span>
+                            <p class="italic text-gray-400">No photo available</p>
                         @endif
                     </div>
                 </div>
