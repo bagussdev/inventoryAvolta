@@ -233,7 +233,58 @@
                 </li>
             @endcan
             {{-- Permission Settings --}}
-            @can('permissionsettingsmenu')
+            @php
+                $isMasterSettingOpen = request()->routeIs(
+                    'permissions.*',
+                    'notification-preferences.*',
+                    'notifications.*',
+                    'log.*',
+                );
+            @endphp
+
+            @canany(['permissionsettingsmenu', 'notifpermission', 'lognotif', 'isMaster'])
+                <li x-data="{ open: {{ $isMasterSettingOpen ? 'true' : 'false' }} }">
+                    <button @click="open = !open"
+                        class="{{ $isMasterSettingOpen ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} flex items-center w-full p-2 rounded-lg group justify-between">
+                        <span class="flex items-center">
+                            {!! view('components.icons.permission-icon')->render() !!}
+                            <span class="ms-3">Master Settings</span>
+                        </span>
+                        <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <ul x-show="open" class="ml-8 space-y-1 mt-2" x-cloak>
+                        @can('permissionsettingsmenu')
+                            <li><a href="{{ route('permissions.index') }}" onclick="showFullScreenLoader();"
+                                    class="{{ request()->routeIs('permissions.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                    Permissions Settings</a>
+                            </li>
+                        @endcan
+                        @can('notifpermission')
+                            <li><a href="{{ route('notification-preferences.index') }}" onclick="showFullScreenLoader();"
+                                    class="{{ request()->routeIs('notification-preferences.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                    Notif Permissions</a>
+                            </li>
+                        @endcan
+                        @can('lognotif')
+                            <li><a href="{{ route('notifications.index') }}" onclick="showFullScreenLoader();"
+                                    class="{{ request()->routeIs('notifications.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                    Log Notifications</a>
+                            </li>
+                        @endcan
+                        @can('isMaster')
+                            <li><a href="{{ route('log.viewer') }}" onclick="showFullScreenLoader();"
+                                    class="{{ request()->routeIs('log.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                    Log Error</a>
+                            </li>
+                        @endcan
+                    </ul>
+                </li>
+            @endcanany
+
+            {{-- @can('permissionsettingsmenu')
                 <li>
                     <a href="{{ route('permissions.index') }}" onclick="showFullScreenLoader();"
                         class="flex items-center p-2 rounded-lg group 
@@ -275,7 +326,7 @@
                         <span class="ms-3">Log Error</span>
                     </a>
                 </li>
-            @endcan
+            @endcan --}}
             <li>
                 <a href="{{ asset('assets/User-Guide-and-UAT-Support-Portal-Avolta-v1.0.pdf') }}" target="_blank"
                     class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">

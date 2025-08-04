@@ -482,6 +482,6 @@ class ItemController extends Controller
 
     public function downloadTemplate()
     {
-        return response()->download(storage_path('app/public/templates/items_template.xlsx'));
+        return response()->download(public_path('templates/items_template.xlsx'));
     }
 }
