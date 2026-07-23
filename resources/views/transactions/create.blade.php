@@ -157,7 +157,7 @@
                                             .sort((a, b) => b.id - a.id)
                                             .map(item => ({
                                                 id: item.id,
-                                                text: `${item.name} - ${item.model} - ${item.category}`
+                                                text: `${item.name} - ${item.model} - ${item.brand}`
                                             }));
 
                                         filtered.unshift({

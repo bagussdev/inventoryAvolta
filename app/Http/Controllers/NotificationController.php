@@ -142,53 +142,75 @@ class NotificationController extends Controller
 
         $logPath = storage_path('logs/laravel.log');
 
-        // Kalau file gak ada
-        if (!File::exists($logPath)) {
-            return view('log-viewer', [
-                'logs' => collect(),
-                'perPage' => 10,
-                'search' => '',
-                'showPagination' => false,
-            ]);
-        }
-
-        $lines = collect(explode("\n", File::get($logPath)))
-            ->filter(fn($line) => trim($line) !== '')
-            ->reverse()
-            ->values();
-
-        // Filter by search
-        $search = $request->input('search');
-        if ($search) {
-            $lines = $lines->filter(fn($line) => str_contains(strtolower($line), strtolower($search)));
-        }
-
-        // Ambil perPage
+        $search = trim((string) $request->input('search', ''));
         $perPageInput = $request->input('per_page', 10);
-        $perPage = $perPageInput === 'all' ? 'all' : (int) $perPageInput;
-        $currentPage = $request->input('page', 1);
 
-        // Kalau all, langsung tampilkan semua
-        if ($perPage === 'all') {
-            $logs = $lines;
-            $showPagination = false;
-        } else {
-            $paged = $lines->forPage($currentPage, $perPage)->values();
+        // Jangan izinkan all untuk log besar
+        $perPage = $perPageInput === 'all' ? 100 : (int) $perPageInput;
+        $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
+
+        $currentPage = max((int) $request->input('page', 1), 1);
+
+        if (!file_exists($logPath)) {
             $logs = new LengthAwarePaginator(
-                $paged,
-                $lines->count(),
+                collect(),
+                0,
                 $perPage,
                 $currentPage,
                 ['path' => $request->url(), 'query' => $request->query()]
             );
-            $showPagination = true;
+
+            return view('log-viewer', [
+                'logs' => $logs,
+                'perPage' => $perPage,
+                'search' => $search,
+                'showPagination' => true,
+            ]);
         }
+
+        // Ambil hanya 2MB terakhir dari laravel.log
+        $maxBytes = 2 * 1024 * 1024;
+        $fileSize = filesize($logPath);
+        $handle = fopen($logPath, 'r');
+
+        if ($fileSize > $maxBytes) {
+            fseek($handle, -$maxBytes, SEEK_END);
+        } else {
+            fseek($handle, 0);
+        }
+
+        $content = fread($handle, $maxBytes);
+        fclose($handle);
+
+        $lines = collect(explode("\n", $content))
+            ->filter(fn($line) => trim($line) !== '')
+            ->reverse()
+            ->values();
+
+        if ($search !== '') {
+            $lines = $lines->filter(function ($line) use ($search) {
+                return stripos($line, $search) !== false;
+            })->values();
+        }
+
+        $paged = $lines->forPage($currentPage, $perPage)->values();
+
+        $logs = new LengthAwarePaginator(
+            $paged,
+            $lines->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
 
         return view('log-viewer', [
             'logs' => $logs,
-            'perPage' => $perPageInput,
+            'perPage' => $perPage,
             'search' => $search,
-            'showPagination' => $showPagination,
+            'showPagination' => true,
         ]);
     }
 }

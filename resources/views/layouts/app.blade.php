@@ -18,6 +18,11 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        [x-cloak] {
+            display: none !important
+        }
+    </style>
 </head>
 
 <body class="font-sans antialiased">
@@ -46,51 +51,129 @@
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             let idleTime = 0;
-            const maxIdleMinutes = 15;
+            let isWarningShown = false;
+            let isLoggingOut = false;
+
+            const warningAfterMinutes = 14;
+            const checkEveryMs = 60000;
 
             function resetIdleTimer() {
-                idleTime = 0;
+                if (!isWarningShown && !isLoggingOut) {
+                    idleTime = 0;
+                }
             }
 
-            // Reset setiap aktivitas user
+            function updateCsrfToken(token) {
+                if (!token) return;
+
+                const metaToken = document.querySelector('meta[name="csrf-token"]');
+                if (metaToken) {
+                    metaToken.setAttribute("content", token);
+                }
+
+                document.querySelectorAll('input[name="_token"]').forEach(input => {
+                    input.value = token;
+                });
+            }
+
+            async function extendSession() {
+                const response = await fetch("{{ route('session.keepalive') }}", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute(
+                            "content"),
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error("Session expired");
+                }
+
+                const data = await response.json();
+                updateCsrfToken(data.token);
+
+                idleTime = 0;
+                isWarningShown = false;
+            }
+
+            async function logoutUser() {
+                if (isLoggingOut) return;
+
+                isLoggingOut = true;
+
+                try {
+                    await fetch("{{ route('force.logout') }}", {
+                        method: "POST",
+                        credentials: "same-origin",
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute("content"),
+                            "Accept": "application/json"
+                        }
+                    });
+                } catch (error) {
+                    console.warn("Logout failed:", error);
+                }
+
+                window.location.replace("{{ route('login') }}");
+            }
+
+            function showIdleWarning() {
+                if (isWarningShown || isLoggingOut) return;
+
+                isWarningShown = true;
+
+                Swal.fire({
+                    title: 'Session Hampir Berakhir',
+                    text: 'Kamu sudah idle cukup lama. Mau lanjutkan session?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Extend Session',
+                    cancelButtonText: 'Logout',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    timer: 60000,
+                    timerProgressBar: true,
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            await extendSession();
+
+                            Swal.fire({
+                                title: 'Session Diperpanjang',
+                                text: 'Kamu bisa lanjut menggunakan aplikasi.',
+                                icon: 'success',
+                                timer: 1500,
+                                showConfirmButton: false
+                            });
+                        } catch (error) {
+                            await logoutUser();
+                        }
+                    } else {
+                        await logoutUser();
+                    }
+                });
+            }
+
             window.onload = resetIdleTimer;
             document.onmousemove = resetIdleTimer;
             document.onkeypress = resetIdleTimer;
             document.onscroll = resetIdleTimer;
             document.onclick = resetIdleTimer;
 
-            // Periksa setiap 1 menit (60000 ms)
             setInterval(() => {
+                if (isLoggingOut) return;
+
                 idleTime++;
-                if (idleTime >= maxIdleMinutes) {
-                    // Trigger logout ke backend
-                    fetch("{{ route('logout') }}", {
-                            method: "POST",
-                            headers: {
-                                "X-CSRF-TOKEN": document.querySelector('meta[name=\"csrf-token\"]')
-                                    .getAttribute("content"),
-                                "Content-Type": "application/json",
-                                "Accept": "application/json"
-                            },
-                        })
-                        .then(res => res.json())
-                        .then(() => {
-                            Swal.fire({
-                                title: 'Session Berakhir',
-                                text: 'Silakan login ulang.',
-                                icon: 'warning',
-                                confirmButtonText: 'OK',
-                                allowOutsideClick: false,
-                                allowEscapeKey: false
-                            }).then(() => {
-                                window.location.href = "{{ route('login') }}";
-                            });
-                        });
+
+                if (idleTime >= warningAfterMinutes) {
+                    showIdleWarning();
                 }
-            }, 60000); // tiap 1 menit
+            }, checkEveryMs);
         });
     </script>
-
     <!-- Tom Select JS -->
     <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js" defer></script>

@@ -113,6 +113,49 @@
                 </li>
             @endif
 
+            @if (auth()->check() && (auth()->user()->department_id === 1 || auth()->user()->role_id === 1))
+                @canany(['laptopsmenu', 'desktopsmenu'])
+                    <li x-data="{ open: {{ request()->routeIs('laptops.*') || request()->routeIs('desktops.*') || request()->routeIs('deleteditems.*') ? 'true' : 'false' }} }">
+                        <button @click="open = !open"
+                            class="{{ request()->routeIs('laptops.*') || request()->routeIs('desktops.*') || request()->routeIs('deleteditems.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} flex items-center w-full p-2 rounded-lg group justify-between">
+                            <span class="flex items-center">
+                                {!! view('components.icons.computer-icon')->render() !!}
+                                <span class="ms-3">Laptop / Desktop</span>
+                            </span>
+                            <svg :class="{ 'rotate-180': open }" class="w-4 h-4 transition-transform" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <ul x-show="open" class="ml-8 space-y-1 mt-2" x-cloak>
+                            @can('laptopsmenu')
+                                <li>
+                                    <a href="{{ route('laptops.index') }}" onclick="showFullScreenLoader();"
+                                        class="{{ request()->routeIs('laptops.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                        Laptop
+                                    </a>
+                                </li>
+                            @endcan
+                            @can('desktopsmenu')
+                                <li>
+                                    <a href="{{ route('desktops.index') }}" onclick="showFullScreenLoader();"
+                                        class="{{ request()->routeIs('desktops.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                        Desktop
+                                    </a>
+                                </li>
+                            @endcan
+                            @can('deleteditemsmenu')
+                                <li>
+                                    <a href="{{ route('deleteditems.index') }}" onclick="showFullScreenLoader();"
+                                        class="{{ request()->routeIs('deleteditems.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm">
+                                        Deleted Laptop/Desktop
+                                    </a>
+                                </li>
+                            @endcan
+                        </ul>
+                    </li>
+                @endcanany
+            @endif
 
             {{-- Transactions --}}
 
@@ -137,7 +180,7 @@
                         <li>
                             <a href="{{ route('transactions.index') }}" onclick="showFullScreenLoader();"
                                 class=" {{ request()->routeIs('transactions.*') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }} block py-1 px-2 rounded text-sm hover:bg-gray-100">
-                                History Transactions</a>
+                                List Transactions</a>
                         </li>
                         {{-- @endcan --}}
                         <li><a href="{{ route('sparepartused.index') }}" onclick="showFullScreenLoader();"
@@ -329,7 +372,7 @@
             @endcan --}}
             <li>
                 <a href="{{ asset('assets/User-Guide-and-UAT-Support-Portal-Avolta-v1.0.pdf') }}" target="_blank"
-                    class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('profile.edit') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
+                    class="flex items-center p-2 rounded-lg group text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 {{ request()->routeIs('userguide') ? 'bg-purple-100 text-purple-700' : 'text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700' }}">
 
                     {{-- SVG icon buku --}}
                     {!! view('components.icons.user-guide-icon')->render() !!}

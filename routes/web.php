@@ -15,11 +15,15 @@ use App\Http\Controllers\UsedSparepartController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\LaptopController;
+use App\Http\Controllers\DesktopController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\DeletedItemsController;
 use App\Models\Incident;
 use App\Models\UsedSparepart;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 // Redirect root to login
 Route::get('/', function () {
@@ -169,6 +173,26 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/last-updated', [NotificationController::class, 'lastUpdated'])->name('notifications.lastUpdated');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+
+    // Laptop Management
+    Route::get('/laptops/sync/changes', [LaptopController::class, 'syncChanges'])->name('laptops.sync.changes');
+    Route::get('/laptops/rows', [LaptopController::class, 'rows'])->name('laptops.rows');
+    Route::post('/laptops/import/save', [LaptopController::class, 'importSave'])->name('laptops.import.save');
+    Route::get('/laptops/template/download', [LaptopController::class, 'downloadTemplate'])->name('laptops.template.download');
+    Route::resource('laptops', LaptopController::class);
+    Route::get('/laptops-export', [LaptopController::class, 'export'])->name('laptops.export');
+
+    // Desktop Management
+    Route::get('/desktops/sync/changes', [DesktopController::class, 'syncChanges'])->name('desktops.sync.changes');
+    Route::get('/desktops/rows', [DesktopController::class, 'rows'])->name('desktops.rows');
+    Route::post('/desktops/import/save', [DesktopController::class, 'importSave'])->name('desktops.import.save');
+    Route::get('/desktops/template/download', [DesktopController::class, 'downloadTemplate'])->name('desktops.template.download');
+    Route::resource('desktops', DesktopController::class);
+    Route::get('/desktops-export', [DesktopController::class, 'export'])->name('desktops.export');
+
+    Route::get('/deleted-items', [DeletedItemsController::class, 'index'])->name('deleteditems.index');
+    Route::patch('/deleted-items/{type}/{id}/restore', [DeletedItemsController::class, 'restore'])->name('deleteditems.restore');
+    Route::delete('/deleted-items/{type}/{id}/force', [DeletedItemsController::class, 'forceDelete'])->name('deleteditems.forceDelete');
 });
 Route::post('/force-logout', function () {
     Auth::logout();
@@ -176,6 +200,13 @@ Route::post('/force-logout', function () {
     session()->regenerateToken();
     return response()->json(['status' => 'logged_out']);
 })->name('force.logout');
+
+Route::post('/session/keep-alive', function (Request $request) {
+    return response()->json([
+        'status' => 'alive',
+        'token' => csrf_token(),
+    ]);
+})->middleware('auth')->name('session.keepalive');
 
 // Route::fallback(function () {
 //     abort(404);

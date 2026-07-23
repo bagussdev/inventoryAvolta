@@ -12,4 +12,6 @@ Artisan::command('inspire', function () {
 
 // Schedule::command(CheckMaintenanceStatus::class)->dailyAt('01:00');
 
-Schedule::command(CheckMaintenanceStatus::class)->everyMinute()->appendOutputTo(storage_path('logs/laravel.log'));
+Schedule::command(CheckMaintenanceStatus::class)
+    ->cron('0 */3 * * *')
+    ->withoutOverlapping()->appendOutputTo(storage_path('logs/laravel.log'));

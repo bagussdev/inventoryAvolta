@@ -32,7 +32,7 @@
 @if ($showPagination)
     <x-per-page-selector :items="$incidents" route="incidents.index" :perPage="$perPage" :showPagination="true" />
 @endif
-
+@include('components.modal-user')
 @push('scripts')
     <script src="https://cdnjs.cloudflare.com/ajax/libs/list.js/2.3.1/list.min.js"></script>
     <script>
@@ -82,5 +82,43 @@
             }
         }
         setInterval(checkIncidentsUpdate, 10000); // 10 detik polling
+    </script>
+    <script>
+        function showUserModal(user) {
+            document.getElementById('detailName').textContent = user.name || '-';
+            document.getElementById('detailLocation').textContent = user.location || '-';
+
+            const emailLink = document.getElementById('detailEmail');
+            if (user.email) {
+                emailLink.textContent = user.email;
+                emailLink.href = 'mailto:' + user.email;
+            } else {
+                emailLink.textContent = '-';
+                emailLink.href = '#';
+            }
+
+            const phoneLink = document.getElementById('detailPhone');
+            if (user.phone) {
+                phoneLink.textContent = user.phone;
+                phoneLink.href = 'https://wa.me/' + user.phone.replace(/^0/, '62');
+                phoneLink.setAttribute('target', '_blank');
+                phoneLink.setAttribute('rel', 'noopener noreferrer');
+            } else {
+                phoneLink.textContent = '-';
+                phoneLink.href = '#';
+            }
+
+            document.getElementById('userDetailModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userDetailModal').classList.add('hidden');
+        }
+
+        function handleOutsideClick(event) {
+            if (event.target.id === 'userDetailModal') {
+                closeUserModal();
+            }
+        }
     </script>
 @endpush

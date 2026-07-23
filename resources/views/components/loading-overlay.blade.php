@@ -11,12 +11,29 @@
 </div>
 
 <script>
-    // Fungsi ini akan tersedia secara global
     function showFullScreenLoader() {
-        document.getElementById('loading-overlay').classList.remove('hidden');
+        const loader = document.getElementById('loading-overlay');
+
+        if (!loader) return;
+
+        loader.classList.remove('hidden');
+        loader.classList.add('flex');
     }
 
     function hideFullScreenLoader() {
-        document.getElementById('loading-overlay').classList.add('hidden');
+        const loader = document.getElementById('loading-overlay');
+
+        if (!loader) return;
+
+        loader.classList.add('hidden');
+        loader.classList.remove('flex');
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        hideFullScreenLoader();
+    });
+
+    window.addEventListener('pageshow', function() {
+        hideFullScreenLoader();
+    });
 </script>

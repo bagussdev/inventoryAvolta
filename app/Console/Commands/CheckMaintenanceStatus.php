@@ -34,8 +34,9 @@ class CheckMaintenanceStatus extends Command
     {
         $tomorrow = Carbon::tomorrow()->toDateString();
 
-        $maintenances = Maintenance::where('status', 'not due')
-            ->whereDate('maintenance_date', $tomorrow)
+        $maintenances = Maintenance::with(['equipment.item', 'equipment.store'])
+            ->where('status', 'not due')
+            ->whereDate('maintenance_date', '<=', $tomorrow)
             ->get();
 
         $updatedCount = 0;
@@ -50,20 +51,24 @@ class CheckMaintenanceStatus extends Command
             $itemName = $item?->name ?? '-';
             $departmentId = $item?->department_id;
 
+            $maintenanceDate = Carbon::parse($maintenance->maintenance_date)->format('d M Y');
+
             $targets = $this->getNotificationTargets('maintenance_schedule', $departmentId);
 
-            foreach ($targets as $target) {
+            if (!empty($targets)) {
                 NotificationService::send(
                     $targets,
                     'update maintenance',
                     'Scheduled Maintenance Incoming',
-                    "Scheduled maintenance for <b>{$itemName}</b> at <b>{$location}</b> will begin tomorrow.",
+                    "Scheduled maintenance for <b>{$itemName}</b> at <b>{$location}</b> is due on <b>{$maintenanceDate}</b>.",
                     'maintenances',
                     $maintenance->id
                 );
             }
         }
 
-        $this->info("Updated {$updatedCount} maintenance(s) to status 'maintenance' and notifications sent.");
+        if ($updatedCount > 0) {
+            $this->info("Updated {$updatedCount} maintenance(s) to status 'maintenance' and notifications sent.");
+        }
     }
 }

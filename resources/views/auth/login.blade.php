@@ -3,6 +3,9 @@
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
     <div class="text-black dark:text-white text-center mb-5 mt-7">
+        <div class="flex justify-center mb-3">
+            <img src="{{ asset('assets/avolta-logo.gif') }}" alt="Avolta Logo" class="h-10 w-auto object-contain">
+        </div>
         <h1 class="font-bold text-2xl mb-2">Login Account</h1>
         <p class="text-slate-400">Welcome to Support Portal Avolta Bali</p>
     </div>
